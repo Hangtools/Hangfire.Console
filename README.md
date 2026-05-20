@@ -1,6 +1,7 @@
 # Hangfire.Console
 
 [![Build status](https://github.com/pieceofsummer/Hangfire.Console/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/pieceofsummer/Hangfire.Console/actions/workflows/ci.yml)
+[![NuGet Publish](https://github.com/pieceofsummer/Hangfire.Console/actions/workflows/publish-nuget.yml/badge.svg)](https://github.com/pieceofsummer/Hangfire.Console/actions/workflows/publish-nuget.yml)
 [![NuGet](https://img.shields.io/nuget/v/Hangfire.Console.svg)](https://www.nuget.org/packages/Hangfire.Console/)
 ![MIT License](https://img.shields.io/badge/license-MIT-orange.svg)
 

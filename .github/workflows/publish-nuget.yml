@@ -1,0 +1,52 @@
+name: Publish NuGet
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish:
+    runs-on: windows-latest
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore Hangfire.Console.sln
+
+      - name: Build
+        run: dotnet build Hangfire.Console.sln -c Release --no-restore /p:ContinuousIntegrationBuild=true
+
+      - name: Test
+        run: dotnet test tests/Hangfire.Console.Tests/Hangfire.Console.Tests.csproj -c Release --no-build
+
+      - name: Pack
+        run: dotnet pack src/Hangfire.Console/Hangfire.Console.csproj -c Release --no-build -o artifacts /p:ContinuousIntegrationBuild=true
+
+      - name: NuGet Sign-in (OIDC to Temp API Key)
+        uses: NuGet/login@v1
+        id: nuget-login
+        with:
+          user: hangtools
+
+      - name: Publish package
+        shell: pwsh
+        run: |
+          Get-ChildItem artifacts -Filter *.nupkg |
+            Where-Object { $_.Extension -ne '.snupkg' } |
+            ForEach-Object {
+              dotnet nuget push $_.FullName `
+                --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" `
+                --source "https://api.nuget.org/v3/index.json" `
+                --skip-duplicate
+            }
