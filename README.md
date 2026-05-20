@@ -125,6 +125,15 @@ It will automatically update progress bar during enumeration, and will set progr
 
 **NOTE**: If the number of items in the collection cannot be determined automatically (e.g. collection doesn't implement `ICollection`/`ICollection<T>`/`IReadOnlyCollection<T>`, you'll need to pass additional argument `count` to the extension method).
 
+## Credits
+
+This package is a community-maintained fork distributed as `Hangtools.Hangfire.Console`.
+
+- Original project by Alexey Skalozub — [pieceofsummer/Hangfire.Console](https://github.com/pieceofsummer/Hangfire.Console)
+- Additional bug fixes backported from the IdentityStream fork by Kristian Hellang — [IdentityStream/Hangfire.Console](https://github.com/IdentityStream/Hangfire.Console)
+
+Both upstream projects are MIT-licensed; see [LICENSE.md](LICENSE.md) for the full text.
+
 ## License
 
 Copyright (c) 2016 Alexey Skalozub
