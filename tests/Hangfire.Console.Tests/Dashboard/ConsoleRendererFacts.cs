@@ -77,7 +77,7 @@ namespace Hangfire.Console.Tests.Dashboard
 
             ConsoleRenderer.RenderLine(builder, line, new DateTime(2016, 1, 1, 0, 0, 0, DateTimeKind.Utc));
 
-            Assert.Equal("<div class=\"line\"><span data-moment-title=\"1451606400\">+ <1ms</span>test</div>", builder.ToString());
+            Assert.Equal("<div class=\"line\"><span data-moment-title=\"1451606400\">+ &lt;1ms</span>test</div>", builder.ToString());
         }
         
         [Fact]
@@ -110,7 +110,7 @@ namespace Hangfire.Console.Tests.Dashboard
 
             ConsoleRenderer.RenderLine(builder, line, new DateTime(2016, 1, 1, 0, 0, 0, DateTimeKind.Utc));
 
-            Assert.Equal("<div class=\"line\" style=\"color:#ffffff\"><span data-moment-title=\"1451606400\">+ <1ms</span>test</div>", builder.ToString());
+            Assert.Equal("<div class=\"line\" style=\"color:#ffffff\"><span data-moment-title=\"1451606400\">+ &lt;1ms</span>test</div>", builder.ToString());
         }
 
         [Fact]
@@ -121,7 +121,7 @@ namespace Hangfire.Console.Tests.Dashboard
 
             ConsoleRenderer.RenderLine(builder, line, new DateTime(2016, 1, 1, 0, 0, 0, DateTimeKind.Utc));
 
-            Assert.Equal("<div class=\"line pb\" data-id=\"3\"><span data-moment-title=\"1451606400\">+ <1ms</span><div class=\"pv\" style=\"width:17%\" data-value=\"17\"></div></div>", builder.ToString());
+            Assert.Equal("<div class=\"line pb\" data-id=\"3\"><span data-moment-title=\"1451606400\">+ &lt;1ms</span><div class=\"pv\" style=\"width:17%\" data-value=\"17\"></div></div>", builder.ToString());
         }
         
         [Fact]
@@ -143,7 +143,7 @@ namespace Hangfire.Console.Tests.Dashboard
 
             ConsoleRenderer.RenderLine(builder, line, new DateTime(2016, 1, 1, 0, 0, 0, DateTimeKind.Utc));
 
-            Assert.Equal("<div class=\"line pb\" data-id=\"3\"><span data-moment-title=\"1451606400\">+ <1ms</span><div class=\"pv\" style=\"width:17.3%\" data-value=\"17\"></div></div>", builder.ToString());
+            Assert.Equal("<div class=\"line pb\" data-id=\"3\"><span data-moment-title=\"1451606400\">+ &lt;1ms</span><div class=\"pv\" style=\"width:17.3%\" data-value=\"17\"></div></div>", builder.ToString());
         }
 
         [Fact]
@@ -154,7 +154,7 @@ namespace Hangfire.Console.Tests.Dashboard
 
             ConsoleRenderer.RenderLine(builder, line, new DateTime(2016, 1, 1, 0, 0, 0, DateTimeKind.Utc));
 
-            Assert.Equal("<div class=\"line pb\" style=\"color:#ffffff\" data-id=\"3\"><span data-moment-title=\"1451606400\">+ <1ms</span><div class=\"pv\" style=\"width:17%\" data-value=\"17\"></div></div>", builder.ToString());
+            Assert.Equal("<div class=\"line pb\" style=\"color:#ffffff\" data-id=\"3\"><span data-moment-title=\"1451606400\">+ &lt;1ms</span><div class=\"pv\" style=\"width:17%\" data-value=\"17\"></div></div>", builder.ToString());
         }
         
         [Fact]
@@ -192,7 +192,7 @@ namespace Hangfire.Console.Tests.Dashboard
             }, new DateTime(2016, 1, 1, 0, 0, 0, DateTimeKind.Utc));
 
             Assert.Equal(
-                "<div class=\"line\"><span data-moment-title=\"1451606400\">+ <1ms</span>line1</div>" +
+                "<div class=\"line\"><span data-moment-title=\"1451606400\">+ &lt;1ms</span>line1</div>" +
                 "<div class=\"line\"><span data-moment-title=\"1451606401\">+1s</span>line2</div>", 
                 builder.ToString());
         }
@@ -238,7 +238,7 @@ namespace Hangfire.Console.Tests.Dashboard
 
             Assert.Equal(
                 "<div class=\"line-buffer\" data-n=\"2\">" +
-                "<div class=\"line\"><span data-moment-title=\"1451606400\">+ <1ms</span>line1</div>" +
+                "<div class=\"line\"><span data-moment-title=\"1451606400\">+ &lt;1ms</span>line1</div>" +
                 "<div class=\"line\"><span data-moment-title=\"1451606401\">+1s</span>line2</div>" +
                 "</div>", builder.ToString());
         }
@@ -324,7 +324,7 @@ namespace Hangfire.Console.Tests.Dashboard
 
             Assert.Equal(
                 "<div class=\"line-buffer\" data-n=\"3\">" +
-                "<div class=\"line pb\" data-id=\"0\"><span data-moment-title=\"1451606400\">+ <1ms</span><div class=\"pv\" style=\"width:5%\" data-value=\"5\"></div></div>" +
+                "<div class=\"line pb\" data-id=\"0\"><span data-moment-title=\"1451606400\">+ &lt;1ms</span><div class=\"pv\" style=\"width:5%\" data-value=\"5\"></div></div>" +
                 "<div class=\"line pb\" data-id=\"1\"><span data-moment-title=\"1451606401\">+1s</span><div class=\"pv\" style=\"width:3%\" data-value=\"3\"></div></div>" +
                 "</div>", builder.ToString());
         }
