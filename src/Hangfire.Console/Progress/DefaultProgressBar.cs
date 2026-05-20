@@ -27,8 +27,8 @@ namespace Hangfire.Console.Progress
             _context = context ?? throw new ArgumentNullException(nameof(context));
             _progressBarId = progressBarId;
             _decimalDigits = decimalDigits;
-            _name = name;
-            _color = color;
+            _name = string.IsNullOrEmpty(name) ? null : name;
+            _color = string.IsNullOrEmpty(color) ? null : color;
             _value = -1;
         }
 
