@@ -1,6 +1,6 @@
 # Hangfire.Console
 
-[![Build status](https://ci.appveyor.com/api/projects/status/b57hb7438d7dvxa2/branch/master?svg=true&passingText=master%20%u2714)](https://ci.appveyor.com/project/pieceofsummer/hangfire-console/branch/master)
+[![Build status](https://github.com/pieceofsummer/Hangfire.Console/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/pieceofsummer/Hangfire.Console/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/v/Hangfire.Console.svg)](https://www.nuget.org/packages/Hangfire.Console/)
 ![MIT License](https://img.shields.io/badge/license-MIT-orange.svg)
 
