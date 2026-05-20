@@ -122,5 +122,25 @@ namespace Hangfire.Console.Tests.Progress
 
             _storage.Verify(x => x.AddLine(It.IsAny<ConsoleId>(), It.IsAny<ConsoleLine>()), Times.Exactly(expectedWrites));
         }
+
+        [Fact]
+        public void SetValue_NormalizesEmptyNameToNull()
+        {
+            var progressBar = new DefaultProgressBar(CreateConsoleContext(), "1", 1, "", null);
+
+            progressBar.SetValue(1);
+
+            _storage.Verify(x => x.AddLine(It.IsAny<ConsoleId>(), It.Is<ConsoleLine>(l => l.ProgressName == null)), Times.Once);
+        }
+
+        [Fact]
+        public void SetValue_NormalizesEmptyColorToNull()
+        {
+            var progressBar = new DefaultProgressBar(CreateConsoleContext(), "1", 1, null, "");
+
+            progressBar.SetValue(1);
+
+            _storage.Verify(x => x.AddLine(It.IsAny<ConsoleId>(), It.Is<ConsoleLine>(l => l.TextColor == null)), Times.Once);
+        }
     }
 }

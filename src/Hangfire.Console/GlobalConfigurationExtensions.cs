@@ -24,12 +24,12 @@ namespace Hangfire.Console
             if (configuration == null)
                 throw new ArgumentNullException(nameof(configuration));
 
+            if (DashboardRoutes.Routes.Contains("/console/([0-9a-f]{11}.+)"))
+                return configuration;
+
             options = options ?? new ConsoleOptions();
 
             options.Validate(nameof(options));
-
-            if (DashboardRoutes.Routes.Contains("/console/([0-9a-f]{11}.+)"))
-                return configuration;
 
             // register server filter for jobs
             GlobalJobFilters.Filters.Add(new ConsoleServerFilter(options));
