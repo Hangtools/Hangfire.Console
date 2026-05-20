@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using Hangfire.Common;
-using Hangfire.Console.Dashboard;
 using Xunit;
 
 namespace Hangfire.Console.Tests.Dashboard
