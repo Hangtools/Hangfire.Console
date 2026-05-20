@@ -8,7 +8,7 @@ namespace Hangfire.Console.Tests.Dashboard
     public class JobProgressDispatcherFacts
     {
         [Fact]
-        public void JsonSettings_PreservesDictionaryKeyCase()
+        public void Serialize_PreservesDictionaryKeyCase()
         {
             var result = new Dictionary<string, double>
             {

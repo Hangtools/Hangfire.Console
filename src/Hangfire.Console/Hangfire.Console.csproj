@@ -8,7 +8,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <AssemblyName>Hangfire.Console</AssemblyName>
-    <PackageId>Hangfire.Console</PackageId>
+    <PackageId>Hangtools.Hangfire.Console</PackageId>
     <PackageTags>hangfire;console;logging</PackageTags>
     <PackageReleaseNotes>History:
       v1.4.3:
@@ -107,10 +107,10 @@
       v1.0.0:
       • Initial release
     </PackageReleaseNotes>
-    <PackageIconUrl>https://raw.githubusercontent.com/pieceofsummer/Hangfire.Console/master/hangfire.console.png</PackageIconUrl>
-    <PackageLicenseUrl>https://raw.githubusercontent.com/pieceofsummer/Hangfire.Console/master/LICENSE.md</PackageLicenseUrl>
+    <PackageIconUrl>https://raw.githubusercontent.com/Hangtools/Hangfire.Console/master/hangfire.console.png</PackageIconUrl>
+    <PackageLicenseUrl>https://raw.githubusercontent.com/Hangtools/Hangfire.Console/master/LICENSE.md</PackageLicenseUrl>
     <RepositoryType>git</RepositoryType>
-    <RepositoryUrl>https://github.com/pieceofsummer/Hangfire.Console</RepositoryUrl>
+    <RepositoryUrl>https://github.com/Hangtools/Hangfire.Console</RepositoryUrl>
     <GenerateAssemblyConfigurationAttribute>false</GenerateAssemblyConfigurationAttribute>
     <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
     <GenerateAssemblyProductAttribute>false</GenerateAssemblyProductAttribute>
