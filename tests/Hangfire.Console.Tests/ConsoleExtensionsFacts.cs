@@ -30,7 +30,7 @@ namespace Hangfire.Console.Tests
             _connection.Setup(x => x.CreateWriteTransaction())
                 .Returns(_transaction.Object);
         }
-        
+
         [Fact]
         public void WriteLine_DoesNotFail_IfContextIsNull()
         {
@@ -76,7 +76,7 @@ namespace Hangfire.Console.Tests
             context.Items["ConsoleContext"] = CreateConsoleContext(context);
 
             var progressBar = ConsoleExtensions.WriteProgressBar(context);
-            
+
             Assert.IsType<DefaultProgressBar>(progressBar);
             _transaction.Verify(x => x.Commit());
         }

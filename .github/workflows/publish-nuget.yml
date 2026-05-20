@@ -2,6 +2,11 @@ name: Publish NuGet
 
 on:
   workflow_dispatch:
+    inputs:
+      packageVersion:
+        description: Package version override (for example, 1.4.4)
+        required: false
+        type: string
   push:
     tags:
       - "v*"
@@ -24,14 +29,34 @@ jobs:
       - name: Restore
         run: dotnet restore Hangfire.Console.sln
 
+      - name: Resolve package version
+        id: version
+        shell: pwsh
+        run: |
+          $version = "${{ github.event.inputs.packageVersion }}"
+
+          if ([string]::IsNullOrWhiteSpace($version) -and "${{ github.ref_type }}" -eq "tag") {
+            $version = "${{ github.ref_name }}"
+          }
+
+          if ($version.StartsWith("v", [System.StringComparison]::OrdinalIgnoreCase)) {
+            $version = $version.Substring(1)
+          }
+
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            throw "Package version could not be determined. Provide workflow_dispatch input 'packageVersion' or publish from a v* tag."
+          }
+
+          "package_version=$version" >> $env:GITHUB_OUTPUT
+
       - name: Build
-        run: dotnet build Hangfire.Console.sln -c Release --no-restore /p:ContinuousIntegrationBuild=true
+        run: dotnet build Hangfire.Console.sln -c Release --no-restore /p:ContinuousIntegrationBuild=true /p:Version=${{ steps.version.outputs.package_version }}
 
       - name: Test
         run: dotnet test tests/Hangfire.Console.Tests/Hangfire.Console.Tests.csproj -c Release --no-build --no-restore
 
       - name: Pack
-        run: dotnet pack src/Hangfire.Console/Hangfire.Console.csproj -c Release --no-build --no-restore -o artifacts /p:ContinuousIntegrationBuild=true
+        run: dotnet pack src/Hangfire.Console/Hangfire.Console.csproj -c Release --no-build --no-restore -o artifacts /p:ContinuousIntegrationBuild=true /p:Version=${{ steps.version.outputs.package_version }}
 
       - name: NuGet Sign-in (OIDC to Temp API Key)
         uses: NuGet/login@v1

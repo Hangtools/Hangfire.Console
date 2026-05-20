@@ -7,7 +7,7 @@
 
 Inspired by AppVeyor, Hangfire.Console provides a console-like logging experience for your jobs.
 
-![dashboard](dashboard.png)
+![dashboard](https://raw.githubusercontent.com/Hangtools/Hangfire.Console/master/dashboard.png)
 
 ## Features
 
@@ -88,7 +88,7 @@ public void TaskMethod(PerformContext context)
 
 Version 1.1.0 adds support for inline progress bars:
 
-![progress](progress.png)
+![progress](https://raw.githubusercontent.com/Hangtools/Hangfire.Console/master/progress.png)
 
 ```c#
 public void TaskMethod(PerformContext context)
