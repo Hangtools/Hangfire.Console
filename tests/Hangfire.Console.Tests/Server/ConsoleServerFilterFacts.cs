@@ -62,7 +62,7 @@ namespace Hangfire.Console.Tests.Server
             var consoleContext = ConsoleContext.FromPerformContext(context);
             Assert.Null(consoleContext);
         }
-        
+
         [Fact]
         public void CreatesConsoleContext_IfStateIsProcessing_DoesNotExpireData_IfConsoleNotPresent()
         {
@@ -99,10 +99,10 @@ namespace Hangfire.Console.Tests.Server
             Assert.Null(consoleContext);
 
             _connection.Verify(x => x.GetHashTtl(It.IsAny<string>()));
-            
+
             _transaction.Verify(x => x.ExpireSet(It.IsAny<string>(), It.IsAny<TimeSpan>()));
             _transaction.Verify(x => x.ExpireHash(It.IsAny<string>(), It.IsAny<TimeSpan>()));
-            
+
             _transaction.Verify(x => x.Commit());
         }
 
@@ -158,7 +158,7 @@ namespace Hangfire.Console.Tests.Server
             var context = CreatePerformContext();
 
             performer.Perform(context);
-            
+
             var consoleContext = ConsoleContext.FromPerformContext(context);
             Assert.Null(consoleContext);
 
@@ -174,7 +174,7 @@ namespace Hangfire.Console.Tests.Server
         public static void JobMethod(PerformContext context)
         {
             // reset transaction method calls after OnPerforming is completed
-            var @this = (ConsoleServerFilterFacts) context.Items["this"];
+            var @this = (ConsoleServerFilterFacts)context.Items["this"];
             @this._transaction.Invocations.Clear();
         }
 
@@ -189,8 +189,8 @@ namespace Hangfire.Console.Tests.Server
         private PerformContext CreatePerformContext()
         {
             var context = new PerformContext(_storage.Object,
-                _connection.Object, 
-                new BackgroundJob("1", Job.FromExpression(() => JobMethod(null)), DateTime.UtcNow), 
+                _connection.Object,
+                new BackgroundJob("1", Job.FromExpression(() => JobMethod(null)), DateTime.UtcNow),
                 _cancellationToken.Object);
             context.Items["this"] = this;
             return context;

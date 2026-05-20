@@ -56,7 +56,7 @@ namespace Hangfire.Console.Tests.States
             _transaction.Verify(x => x.ExpireJob(It.IsAny<string>(), TimeSpan.FromSeconds(123)));
             _transaction.Verify(x => x.ExpireSet(It.IsAny<string>(), TimeSpan.FromSeconds(123)));
         }
-        
+
         [Fact]
         public void DoesNotExpire_IfNotFollowsJobRetention()
         {
@@ -64,10 +64,10 @@ namespace Hangfire.Console.Tests.States
                 .Returns(CreateJobData(ProcessingState.StateName));
             _monitoring.Setup(x => x.JobDetails("1"))
                 .Returns(CreateJobDetails());
-            
+
             var stateChanger = new BackgroundJobStateChanger(CreateJobFilterProvider(false));
             var context = CreateStateChangeContext(new MockSucceededState());
-            
+
             stateChanger.ChangeState(context);
 
             _transaction.Verify(x => x.ExpireSet(It.IsAny<string>(), It.IsAny<TimeSpan>()), Times.Never);
@@ -90,7 +90,7 @@ namespace Hangfire.Console.Tests.States
             _transaction.Verify(x => x.ExpireSet(It.IsAny<string>(), It.IsAny<TimeSpan>()));
             _transaction.Verify(x => x.ExpireHash(It.IsAny<string>(), It.IsAny<TimeSpan>()));
         }
-        
+
         [Fact]
         public void Persists_IfStateIsNotFinal()
         {
@@ -101,7 +101,7 @@ namespace Hangfire.Console.Tests.States
 
             var stateChanger = new BackgroundJobStateChanger(CreateJobFilterProvider());
             var context = CreateStateChangeContext(new MockFailedState());
-            
+
             stateChanger.ChangeState(context);
 
             _transaction.Verify(x => x.PersistSet(It.IsAny<string>()));
@@ -125,7 +125,7 @@ namespace Hangfire.Console.Tests.States
             public bool IsFinal => true;
 
             public bool IgnoreJobLoadException => false;
-            
+
             public Dictionary<string, string> SerializeData()
             {
                 return new Dictionary<string, string>();
@@ -157,7 +157,7 @@ namespace Hangfire.Console.Tests.States
         public static void JobMethod()
         {
         }
-        
+
         private JobDetailsDto CreateJobDetails()
         {
             var date = DateTime.UtcNow.AddHours(-1);
@@ -187,7 +187,7 @@ namespace Hangfire.Console.Tests.States
             });
 
             history.Reverse();
-            
+
             return new JobDetailsDto()
             {
                 CreatedAt = history[0].CreatedAt,

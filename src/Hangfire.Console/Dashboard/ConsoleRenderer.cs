@@ -23,7 +23,7 @@ namespace Hangfire.Console.Dashboard
         private static readonly Regex LinkDetector = new Regex(@"
             \b(?:(?<schema>(?:f|ht)tps?://)|www\.|ftp\.)
               (?:\([-\w+&@#/%=~|$?!:,.]*\)|[-\w+&@#/%=~|$?!:,.])*
-              (?:\([-\w+&@#/%=~|$?!:,.]*\)|[\w+&@#/%=~|$])", 
+              (?:\([-\w+&@#/%=~|$?!:,.]*\)|[\w+&@#/%=~|$])",
             RegexOptions.IgnorePatternWhitespace | RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         private class DummyPage : RazorPage
@@ -41,7 +41,7 @@ namespace Hangfire.Console.Dashboard
         public static void RenderText(StringBuilder buffer, string text)
         {
             if (string.IsNullOrEmpty(text)) return;
-            
+
             var start = 0;
 
             foreach (Match m in LinkDetector.Matches(text))
@@ -182,7 +182,7 @@ namespace Hangfire.Console.Dashboard
                 // has some new items to fetch
 
                 Dictionary<string, ConsoleLine> progressBars = null;
-                    
+
                 foreach (var entry in storage.GetLines(consoleId, start, count - 1))
                 {
                     if (entry.ProgressValue.HasValue)
