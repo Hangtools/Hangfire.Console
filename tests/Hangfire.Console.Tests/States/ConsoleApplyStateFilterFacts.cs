@@ -5,6 +5,7 @@ using Hangfire.Storage;
 using Hangfire.Storage.Monitoring;
 using Moq;
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -152,6 +153,7 @@ namespace Hangfire.Console.Tests.States
             return new StateChangeContext(_storage.Object, _connection.Object, "1", state);
         }
 
+        [SuppressMessage("Usage", "xUnit1013", Justification = "Hangfire job methods must be public for Job.FromExpression")]
         public static void JobMethod()
         {
         }

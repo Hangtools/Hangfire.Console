@@ -6,6 +6,7 @@ using Hangfire.Server;
 using Hangfire.Storage;
 using Moq;
 using System;
+using System.Diagnostics.CodeAnalysis;
 using Xunit;
 
 namespace Hangfire.Console.Tests
@@ -13,15 +14,19 @@ namespace Hangfire.Console.Tests
     public class ConsoleExtensionsFacts
     {
         private readonly Mock<IJobCancellationToken> _cancellationToken;
+        private readonly Mock<JobStorage> _storage;
         private readonly Mock<JobStorageConnection> _connection;
         private readonly Mock<JobStorageTransaction> _transaction;
 
         public ConsoleExtensionsFacts()
         {
             _cancellationToken = new Mock<IJobCancellationToken>();
+            _storage = new Mock<JobStorage>();
             _connection = new Mock<JobStorageConnection>();
             _transaction = new Mock<JobStorageTransaction>();
 
+            _storage.Setup(x => x.GetConnection())
+                .Returns(_connection.Object);
             _connection.Setup(x => x.CreateWriteTransaction())
                 .Returns(_transaction.Object);
         }
@@ -87,13 +92,15 @@ namespace Hangfire.Console.Tests
             _transaction.Verify(x => x.Commit(), Times.Never);
         }
 
+        [SuppressMessage("Usage", "xUnit1013", Justification = "Hangfire job methods must be public for Job.FromExpression")]
         public static void JobMethod()
         {
         }
 
         private PerformContext CreatePerformContext()
         {
-            return new PerformContext(_connection.Object,
+            return new PerformContext(_storage.Object,
+                _connection.Object,
                 new BackgroundJob("1", Common.Job.FromExpression(() => JobMethod()), DateTime.UtcNow),
                 _cancellationToken.Object);
         }

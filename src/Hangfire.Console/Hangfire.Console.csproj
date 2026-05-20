@@ -4,11 +4,14 @@
     <AssemblyTitle>Hangfire.Console</AssemblyTitle>
     <VersionPrefix>1.4.3</VersionPrefix>
     <Authors>Alexey Skalozub</Authors>
-    <TargetFrameworks>netstandard1.3;net45</TargetFrameworks>
+    <TargetFrameworks>netstandard1.3;net451</TargetFrameworks>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <AssemblyName>Hangfire.Console</AssemblyName>
-    <PackageId>Hangfire.Console</PackageId>
+    <PackageId>Hangtools.Hangfire.Console</PackageId>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageIcon>hangfire.console.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>hangfire;console;logging</PackageTags>
     <PackageReleaseNotes>History:
       v1.4.3:
@@ -107,24 +110,24 @@
       v1.0.0:
       • Initial release
     </PackageReleaseNotes>
-    <PackageIconUrl>https://raw.githubusercontent.com/pieceofsummer/Hangfire.Console/master/hangfire.console.png</PackageIconUrl>
-    <PackageLicenseUrl>https://raw.githubusercontent.com/pieceofsummer/Hangfire.Console/master/LICENSE.md</PackageLicenseUrl>
     <RepositoryType>git</RepositoryType>
-    <RepositoryUrl>https://github.com/pieceofsummer/Hangfire.Console</RepositoryUrl>
+    <RepositoryUrl>https://github.com/Hangtools/Hangfire.Console</RepositoryUrl>
     <GenerateAssemblyConfigurationAttribute>false</GenerateAssemblyConfigurationAttribute>
     <GenerateAssemblyCompanyAttribute>false</GenerateAssemblyCompanyAttribute>
     <GenerateAssemblyProductAttribute>false</GenerateAssemblyProductAttribute>
   </PropertyGroup>
   <ItemGroup>
+    <None Include="..\..\README.md" Link="README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\hangfire.console.png" Link="hangfire.console.png" Pack="true" PackagePath="\" />
     <EmbeddedResource Include="Resources\*" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Hangfire.Core" Version="1.6.0" />
-    <PackageReference Include="JetBrains.Annotations" Version="11.0.0" PrivateAssets="All" />
+    <PackageReference Include="Hangfire.Core" Version="1.8.23" />
+    <PackageReference Include="JetBrains.Annotations" Version="2025.2.4" PrivateAssets="All" />
   </ItemGroup>
-  <ItemGroup Condition=" '$(TargetFramework)' == 'net45' ">
+  <ItemGroup Condition=" '$(TargetFramework)' == 'net451' ">
     <Reference Include="System" />
     <Reference Include="Microsoft.CSharp" />
-    <PackageReference Include="Newtonsoft.Json" Version="5.0.1" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
   </ItemGroup>
 </Project>

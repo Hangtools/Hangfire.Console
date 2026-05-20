@@ -5,6 +5,7 @@ using Hangfire.States;
 using Hangfire.Storage;
 using Moq;
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using Xunit;
 
@@ -14,6 +15,7 @@ namespace Hangfire.Console.Tests.Server
     {
         private readonly Mock<IServerFilter> _otherFilter;
         private readonly Mock<IJobCancellationToken> _cancellationToken;
+        private readonly Mock<JobStorage> _storage;
         private readonly Mock<JobStorageConnection> _connection;
         private readonly Mock<JobStorageTransaction> _transaction;
 
@@ -21,9 +23,12 @@ namespace Hangfire.Console.Tests.Server
         {
             _otherFilter = new Mock<IServerFilter>();
             _cancellationToken = new Mock<IJobCancellationToken>();
+            _storage = new Mock<JobStorage>();
             _connection = new Mock<JobStorageConnection>();
             _transaction = new Mock<JobStorageTransaction>();
 
+            _storage.Setup(x => x.GetConnection())
+                .Returns(_connection.Object);
             _connection.Setup(x => x.CreateWriteTransaction())
                 .Returns(_transaction.Object);
         }
@@ -165,11 +170,12 @@ namespace Hangfire.Console.Tests.Server
             _transaction.Verify(x => x.Commit());
         }
 
+        [SuppressMessage("Usage", "xUnit1013", Justification = "Hangfire job methods must be public for Job.FromExpression")]
         public static void JobMethod(PerformContext context)
         {
             // reset transaction method calls after OnPerforming is completed
             var @this = (ConsoleServerFilterFacts) context.Items["this"];
-            @this._transaction.ResetCalls();
+            @this._transaction.Invocations.Clear();
         }
 
         private IJobFilterProvider CreateJobFilterProvider(bool followJobRetention = false)
@@ -182,7 +188,8 @@ namespace Hangfire.Console.Tests.Server
 
         private PerformContext CreatePerformContext()
         {
-            var context = new PerformContext(_connection.Object, 
+            var context = new PerformContext(_storage.Object,
+                _connection.Object, 
                 new BackgroundJob("1", Job.FromExpression(() => JobMethod(null)), DateTime.UtcNow), 
                 _cancellationToken.Object);
             context.Items["this"] = this;

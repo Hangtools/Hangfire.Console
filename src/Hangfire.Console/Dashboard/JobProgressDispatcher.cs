@@ -7,8 +7,6 @@ using Hangfire.Console.Serialization;
 using Hangfire.Console.Storage;
 using Hangfire.Dashboard;
 using Hangfire.States;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
 
 namespace Hangfire.Console.Dashboard
 {
@@ -17,11 +15,6 @@ namespace Hangfire.Console.Dashboard
     /// </summary>
     internal class JobProgressDispatcher : IDashboardDispatcher
     {
-        internal static readonly JsonSerializerSettings JsonSettings = new JsonSerializerSettings()
-        {
-            ContractResolver = new DefaultContractResolver()
-        };
-        
         // ReSharper disable once NotAccessedField.Local
         private readonly ConsoleOptions _options;
 
@@ -68,7 +61,7 @@ namespace Hangfire.Console.Dashboard
                 }
             }
 
-            var serialized = JsonConvert.SerializeObject(result, JsonSettings);
+            var serialized = SerializationHelper.Serialize(result);
 
             context.Response.ContentType = "application/json";
             await context.Response.WriteAsync(serialized);

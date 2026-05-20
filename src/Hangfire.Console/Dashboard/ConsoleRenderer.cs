@@ -99,7 +99,7 @@ namespace Hangfire.Console.Dashboard
 
             if (isProgressBar && !string.IsNullOrWhiteSpace(line.ProgressName))
             {
-                builder.Append(Helper.MomentTitle(timestamp + offset, Helper.HtmlEncode(line.ProgressName)));
+                builder.Append(Helper.MomentTitle(timestamp + offset, line.ProgressName));
             }
             else
             {
@@ -136,7 +136,7 @@ namespace Hangfire.Console.Dashboard
                 RenderLine(builder, line, timestamp);
             }
         }
-        
+
         /// <summary>
         /// Fetches and renders console line buffer.
         /// </summary>

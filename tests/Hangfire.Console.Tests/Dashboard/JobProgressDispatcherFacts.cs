@@ -1,6 +1,5 @@
 using System.Collections.Generic;
-using Hangfire.Console.Dashboard;
-using Newtonsoft.Json;
+using Hangfire.Common;
 using Xunit;
 
 namespace Hangfire.Console.Tests.Dashboard
@@ -8,7 +7,7 @@ namespace Hangfire.Console.Tests.Dashboard
     public class JobProgressDispatcherFacts
     {
         [Fact]
-        public void JsonSettings_PreservesDictionaryKeyCase()
+        public void Serialize_PreservesDictionaryKeyCase()
         {
             var result = new Dictionary<string, double>
             {
@@ -17,7 +16,7 @@ namespace Hangfire.Console.Tests.Dashboard
                 ["ccc"] = 3.0
             };
 
-            var json = JsonConvert.SerializeObject(result, JobProgressDispatcher.JsonSettings);
+            var json = SerializationHelper.Serialize(result);
 
             Assert.Equal("{\"AAA\":1.0,\"Bbb\":2.0,\"ccc\":3.0}", json);
         }
