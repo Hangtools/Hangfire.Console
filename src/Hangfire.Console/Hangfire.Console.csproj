@@ -4,7 +4,7 @@
     <AssemblyTitle>Hangfire.Console</AssemblyTitle>
     <VersionPrefix>1.4.4</VersionPrefix>
     <Authors>Alexey Skalozub</Authors>
-    <TargetFrameworks>netstandard1.3;net451</TargetFrameworks>
+    <TargetFrameworks>net451;netstandard1.3;netstandard2.0</TargetFrameworks>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <AssemblyName>Hangfire.Console</AssemblyName>
