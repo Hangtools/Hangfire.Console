@@ -126,6 +126,20 @@ namespace Hangfire.Console.Tests.Dashboard
         }
 
         [Fact]
+        public async Task Dispatch_UsesProvidedPrefixPath()
+        {
+            var options = new ConsoleOptions();
+            var dispatcher = new DynamicJsDispatcher(options);
+            var context = CreateContext("/custom/path", "/api");
+
+            await dispatcher.Dispatch(context);
+
+            var result = GetWrittenContent();
+
+            Assert.Contains("hangfire.config.consolePollUrl = '/api/custom/path/console/';", result);
+        }
+
+        [Fact]
         public async Task Dispatch_AppendsTrailingNewLine()
         {
             var options = new ConsoleOptions();
