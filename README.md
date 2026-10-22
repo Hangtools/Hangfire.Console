@@ -84,6 +84,16 @@ public void TaskMethod(PerformContext context)
 }
 ```
 
+## Storage and job lifetime
+
+Console logging uses its own storage connection. On .NET Framework and .NET Standard 2.0, console operations also run outside any ambient `TransactionScope`. This keeps console output available even if the job's transaction rolls back.
+
+Await all tasks that write console output before returning from a job. Text and progress updates made after execution finishes are ignored.
+
+With `FollowJobRetentionPolicy` enabled, console output follows the parent job's retention. If a deleted job expires while its code is still running, output recreated after expiration is removed when execution finishes. With this option disabled, console output is retained for `ExpireIn` after execution finishes.
+
+Custom performers that create a `PerformContext` without `Storage` use the supplied connection instead. Hangfire.Console leaves that connection open; if it has already joined a transaction, console output remains subject to that transaction.
+
 ## Progress bars
 
 Version 1.1.0 adds support for inline progress bars:
@@ -122,6 +132,10 @@ public void TaskMethod(PerformContext context)
 ```
 
 It will automatically update progress bar during enumeration, and will set progress to 100% if for-each loop was interrupted with a `break` instruction.
+
+To limit storage load for large collections, `WithProgress` reports at most once per whole percentage point, plus the final 100% update (at most 101 updates per enumeration). Reported values retain their fractional precision; direct `SetValue` calls continue to use `ConsoleOptions.ProgressBarDecimalDigits`.
+
+Each `WriteLine` call still writes to storage. Avoid logging every item in a large collection; use the progress bar and log occasional summaries instead.
 
 **NOTE**: If the number of items in the collection cannot be determined automatically (e.g. collection doesn't implement `ICollection`/`ICollection<T>`/`IReadOnlyCollection<T>`, you'll need to pass additional argument `count` to the extension method).
 

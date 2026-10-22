@@ -12,6 +12,7 @@ namespace Hangfire.Console.Server
     /// </summary>
     internal class ConsoleServerFilter : IServerFilter
     {
+        private const string OwnedConsoleContextKey = "Hangfire.Console.Server.ConsoleServerFilter.OwnedContext";
         private readonly ConsoleOptions _options;
 
         public ConsoleServerFilter(ConsoleOptions options)
@@ -37,33 +38,47 @@ namespace Hangfire.Console.Server
             
             var startedAt = JobHelper.DeserializeDateTime(state.Data["StartedAt"]);
 
-            filterContext.Items["ConsoleContext"] = new ConsoleContext(
-                new ConsoleId(filterContext.BackgroundJob.Id, startedAt),
-                new ConsoleStorage(filterContext.Connection),
-                _options);
+            using (ConsoleContext.SuppressAmbientTransaction())
+            {
+                // Legacy/custom performers may provide only the worker's connection.
+                var ownsConnection = filterContext.Storage != null;
+                var connection = ownsConnection ? filterContext.Storage.GetConnection() : filterContext.Connection;
+                try
+                {
+                    var consoleContext = new ConsoleContext(
+                        new ConsoleId(filterContext.BackgroundJob.Id, startedAt), new ConsoleStorage(connection, ownsConnection), _options, filterContext.Storage);
+                    filterContext.Items[OwnedConsoleContextKey] = consoleContext;
+                    filterContext.Items["ConsoleContext"] = consoleContext;
+                }
+                catch
+                {
+                    if (ownsConnection)
+                    {
+                        connection.Dispose();
+                    }
+
+                    throw;
+                }
+            }
         }
 
         public void OnPerformed(PerformedContext filterContext)
         {
-            if (_options.FollowJobRetentionPolicy)
+            try
             {
-                // Console sessions follow parent job expiration.
-                // Normally, ConsoleApplyStateFilter will update expiration for all consoles, no extra work needed.
-
-                // If the running job is deleted from the Dashboard, ConsoleApplyStateFilter will be called immediately,
-                // but the job will continue running, unless IJobCancellationToken.ThrowIfCancellationRequested() is met. 
-                // If anything is written to console after the job was deleted, it won't get a correct expiration assigned.
-
-                // Need to re-apply expiration to prevent those records from becoming eternal garbage.
-                ConsoleContext.FromPerformContext(filterContext)?.FixExpiration();
+                // Keep ownership independent of the entry exposed to other filters.
+                if (filterContext.Items.TryGetValue(OwnedConsoleContextKey, out var ownedContext))
+                {
+                    var applyRetention = filterContext.Items.TryGetValue("ConsoleContext", out var activeContext) &&
+                        ReferenceEquals(ownedContext, activeContext);
+                    ((ConsoleContext)ownedContext).Complete(applyRetention);
+                }
             }
-            else
+            finally
             {
-                ConsoleContext.FromPerformContext(filterContext)?.Expire(_options.ExpireIn);
+                filterContext.Items.Remove("ConsoleContext");
+                filterContext.Items.Remove(OwnedConsoleContextKey);
             }
-            
-            // remove console context to prevent further writes from filters
-            filterContext.Items.Remove("ConsoleContext");
         }
     }
 }

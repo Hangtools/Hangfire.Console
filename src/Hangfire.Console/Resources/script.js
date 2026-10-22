@@ -288,14 +288,23 @@ $(function () {
     if (/\/jobs\/details\/([^/]+)$/.test(path)) {
         // execute scripts for /jobs/details/<jobId>
         
-        $(".console").each(function (index) {
+        var consoles = $(".console");
+        var currentConsole = consoles.filter(function () {
+            return parseInt($(".line-buffer", this).data('n'), 10) >= 0;
+        }).first();
+
+        if (currentConsole.length === 0) {
+            currentConsole = consoles.first();
+        }
+
+        consoles.each(function () {
             var $this = $(this),
                 c = new Hangfire.Console($this);
 
             $this.data('console', c);
 
-            if (index === 0) {
-                // poll on the first console
+            if ($this.is(currentConsole)) {
+                // poll the current Processing session, regardless of history order
                 c.poll();
             } else if ($this.find(".line").length > 0) {
                 // collapse outdated consoles
