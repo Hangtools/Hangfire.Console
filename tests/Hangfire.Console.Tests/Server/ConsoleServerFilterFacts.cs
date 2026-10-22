@@ -69,23 +69,36 @@ namespace Hangfire.Console.Tests.Server
             Assert.Null(consoleContext);
         }
 
-        [Fact]
-        public void CreatesConsoleContext_IfStateIsProcessing_DoesNotExpireData_IfConsoleNotPresent()
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void RemovedConsoleContext_StillDisposesItsConnection_WithoutExpiringData(bool followJobRetention)
         {
+            ConsoleContext removedConsole = null;
             _connection.Setup(x => x.GetStateData("1"))
                 .Returns(CreateState(ProcessingState.StateName));
             _otherFilter.Setup(x => x.OnPerforming(It.IsAny<PerformingContext>()))
-                .Callback<PerformingContext>(x => { x.Items.Remove("ConsoleContext"); });
+                .Callback<PerformingContext>(x =>
+                {
+                    removedConsole = ConsoleContext.FromPerformContext(x);
+                    x.Items.Remove("ConsoleContext");
+                });
 
-            var performer = new BackgroundJobPerformer(CreateJobFilterProvider());
+            var performer = new BackgroundJobPerformer(CreateJobFilterProvider(followJobRetention));
             var context = CreatePerformContext();
 
             performer.Perform(context);
 
             var consoleContext = ConsoleContext.FromPerformContext(context);
             Assert.Null(consoleContext);
+            Assert.NotNull(removedConsole);
+            removedConsole.WriteLine("Late callback", null);
 
             _transaction.Verify(x => x.Commit(), Times.Never);
+            _consoleConnection.Verify(x => x.GetHashTtl(It.IsAny<string>()), Times.Never);
+            _consoleConnection.Verify(x => x.Dispose(), Times.Once);
+            _connection.Verify(x => x.Dispose(), Times.Never);
+            Assert.Single(context.Items);
         }
 
         [Fact]

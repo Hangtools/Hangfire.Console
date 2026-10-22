@@ -122,7 +122,7 @@ namespace Hangfire.Console.Server
             }
         }
 
-        public void Complete()
+        public void Complete(bool applyRetention = true)
         {
             lock (this)
             {
@@ -131,8 +131,11 @@ namespace Hangfire.Console.Server
 
                 try
                 {
-                    if (_options.FollowJobRetentionPolicy) FixExpiration();
-                    else Expire(_options.ExpireIn);
+                    if (applyRetention)
+                    {
+                        if (_options.FollowJobRetentionPolicy) FixExpiration();
+                        else Expire(_options.ExpireIn);
+                    }
                 }
                 finally
                 {

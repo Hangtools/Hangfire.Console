@@ -12,6 +12,7 @@ namespace Hangfire.Console.Server
     /// </summary>
     internal class ConsoleServerFilter : IServerFilter
     {
+        private const string OwnedConsoleContextKey = "Hangfire.Console.Server.ConsoleServerFilter.OwnedContext";
         private readonly ConsoleOptions _options;
 
         public ConsoleServerFilter(ConsoleOptions options)
@@ -42,8 +43,10 @@ namespace Hangfire.Console.Server
                 var connection = filterContext.Storage.GetConnection();
                 try
                 {
-                    filterContext.Items["ConsoleContext"] = new ConsoleContext(
+                    var consoleContext = new ConsoleContext(
                         new ConsoleId(filterContext.BackgroundJob.Id, startedAt), new ConsoleStorage(connection), _options);
+                    filterContext.Items[OwnedConsoleContextKey] = consoleContext;
+                    filterContext.Items["ConsoleContext"] = consoleContext;
                 }
                 catch
                 {
@@ -57,12 +60,18 @@ namespace Hangfire.Console.Server
         {
             try
             {
-                // Stop late writes before fixing retention and releasing the console-owned connection.
-                ConsoleContext.FromPerformContext(filterContext)?.Complete();
+                // Keep ownership independent of the entry exposed to other filters.
+                if (filterContext.Items.TryGetValue(OwnedConsoleContextKey, out var ownedContext))
+                {
+                    var applyRetention = filterContext.Items.TryGetValue("ConsoleContext", out var activeContext) &&
+                        ReferenceEquals(ownedContext, activeContext);
+                    ((ConsoleContext)ownedContext).Complete(applyRetention);
+                }
             }
             finally
             {
                 filterContext.Items.Remove("ConsoleContext");
+                filterContext.Items.Remove(OwnedConsoleContextKey);
             }
         }
     }
