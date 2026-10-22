@@ -12,8 +12,9 @@ namespace Hangfire.Console.Storage
         private const int ValueFieldLimit = 256;
 
         private readonly JobStorageConnection _connection;
+        private readonly bool _ownsConnection;
 
-        public ConsoleStorage(IStorageConnection connection)
+        public ConsoleStorage(IStorageConnection connection, bool ownsConnection = true)
         {
             if (connection == null)
                 throw new ArgumentNullException(nameof(connection));
@@ -22,11 +23,12 @@ namespace Hangfire.Console.Storage
                 throw new NotSupportedException("Storage connections must implement JobStorageConnection");
             
             _connection = jobStorageConnection;
+            _ownsConnection = ownsConnection;
         }
 
         public void Dispose()
         {
-            _connection.Dispose();
+            if (_ownsConnection) _connection.Dispose();
         }
 
         public void InitConsole(ConsoleId consoleId)

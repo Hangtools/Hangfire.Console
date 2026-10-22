@@ -86,9 +86,9 @@ public void TaskMethod(PerformContext context)
 
 ## Storage and job lifetime
 
-Console logging uses its own storage connection so it does not share a connection held by job filters. The .NET Framework and .NET Standard 2.0 builds keep console operations outside an ambient `TransactionScope`, so diagnostic messages survive a rollback of the job's transaction.
+Console logging uses its own storage connection so it does not share a connection held by job filters. Custom performers that supply a `PerformContext` without `Storage` retain the existing shared-connection behavior; Console does not close that borrowed connection. The .NET Framework and .NET Standard 2.0 builds keep console operations outside an ambient `TransactionScope`, so diagnostic messages survive a rollback of the job's transaction when the connection has not already enlisted.
 
-Await all work that writes console output before returning from a job. When the job finishes, console logging closes its connection and ignores later text and progress updates. If a deleted job outlives its expiration and recreates console records, cleanup expires those records after the parent job is gone.
+Await all work that writes console output before returning from a job. When the job finishes, console logging closes any connection it owns and ignores later text and progress updates. If a deleted job outlives its expiration and recreates console records, cleanup expires those records after the parent job is gone.
 
 ## Progress bars
 

@@ -204,6 +204,49 @@ namespace Hangfire.Console.Tests.Server
             _connection.Verify(x => x.Dispose(), Times.Never);
         }
 
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void MissingStorage_UsesBorrowedJobConnectionWithoutDisposingIt(bool followJobRetention)
+        {
+            _connection.Setup(x => x.GetStateData("1"))
+                .Returns(CreateState(ProcessingState.StateName));
+            ConsoleContext console = null;
+            _otherFilter.Setup(x => x.OnPerforming(It.IsAny<PerformingContext>()))
+                .Callback<PerformingContext>(x =>
+                {
+                    console = ConsoleContext.FromPerformContext(x);
+                    console.WriteLine("Message from a custom performer", null);
+                });
+            var context = CreatePerformContext(withStorage: false);
+
+            new BackgroundJobPerformer(CreateJobFilterProvider(followJobRetention)).Perform(context);
+
+            Assert.NotNull(console);
+            Assert.Null(ConsoleContext.FromPerformContext(context));
+            console.WriteLine("Late callback", null);
+            _storage.Verify(x => x.GetConnection(), Times.Never);
+            _connection.Verify(x => x.CreateWriteTransaction(), Times.AtLeastOnce);
+            _connection.Verify(x => x.Dispose(), Times.Never);
+            _consoleConnection.Verify(x => x.Dispose(), Times.Never);
+            _transaction.Verify(x => x.AddToSet(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<double>()), Times.Never);
+        }
+
+        [Fact]
+        public void MissingStorage_InitializationFailureDoesNotDisposeBorrowedConnection()
+        {
+            _connection.Setup(x => x.GetStateData("1"))
+                .Returns(CreateState(ProcessingState.StateName));
+            _transaction.Setup(x => x.Commit()).Throws(new InvalidOperationException("Storage unavailable"));
+            var filter = new ConsoleServerFilter(new ConsoleOptions());
+
+            Assert.Throws<InvalidOperationException>(() => filter.OnPerforming(
+                new PerformingContext(CreatePerformContext(withStorage: false))));
+
+            _storage.Verify(x => x.GetConnection(), Times.Never);
+            _connection.Verify(x => x.Dispose(), Times.Never);
+        }
+
         [Fact]
         public void InitializationFailureDisposesConsoleConnection()
         {
@@ -248,9 +291,9 @@ namespace Hangfire.Console.Tests.Server
             return new JobFilterProviderCollection(filters);
         }
 
-        private PerformContext CreatePerformContext()
+        private PerformContext CreatePerformContext(bool withStorage = true)
         {
-            var context = new PerformContext(_storage.Object,
+            var context = new PerformContext(withStorage ? _storage.Object : null,
                 _connection.Object,
                 new BackgroundJob("1", Job.FromExpression(() => JobMethod(null)), DateTime.UtcNow),
                 _cancellationToken.Object);

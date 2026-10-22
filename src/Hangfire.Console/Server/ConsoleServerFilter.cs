@@ -40,17 +40,19 @@ namespace Hangfire.Console.Server
 
             using (ConsoleContext.SuppressAmbientTransaction())
             {
-                var connection = filterContext.Storage.GetConnection();
+                // Legacy/custom performers may provide only the worker's connection.
+                var ownsConnection = filterContext.Storage != null;
+                var connection = ownsConnection ? filterContext.Storage.GetConnection() : filterContext.Connection;
                 try
                 {
                     var consoleContext = new ConsoleContext(
-                        new ConsoleId(filterContext.BackgroundJob.Id, startedAt), new ConsoleStorage(connection), _options);
+                        new ConsoleId(filterContext.BackgroundJob.Id, startedAt), new ConsoleStorage(connection, ownsConnection), _options);
                     filterContext.Items[OwnedConsoleContextKey] = consoleContext;
                     filterContext.Items["ConsoleContext"] = consoleContext;
                 }
                 catch
                 {
-                    connection.Dispose();
+                    if (ownsConnection) connection.Dispose();
                     throw;
                 }
             }

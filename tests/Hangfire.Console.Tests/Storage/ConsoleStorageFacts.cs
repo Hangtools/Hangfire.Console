@@ -56,6 +56,16 @@ namespace Hangfire.Console.Tests.Storage
         }
 
         [Fact]
+        public void Dispose_DoesNotCloseBorrowedConnection()
+        {
+            var storage = new ConsoleStorage(_connection.Object, ownsConnection: false);
+
+            storage.Dispose();
+
+            _connection.Verify(x => x.Dispose(), Times.Never);
+        }
+
+        [Fact]
         public void Expire_DisposesItsTransactionOnce()
         {
             var storage = new ConsoleStorage(_connection.Object);
