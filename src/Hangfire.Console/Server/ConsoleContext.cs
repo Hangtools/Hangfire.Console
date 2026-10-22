@@ -2,6 +2,7 @@
 using Hangfire.Console.Serialization;
 using Hangfire.Console.Storage;
 using Hangfire.Server;
+using Hangfire.States;
 using System;
 using System.Globalization;
 using System.Threading;
@@ -13,6 +14,7 @@ namespace Hangfire.Console.Server
         private readonly ConsoleId _consoleId;
         private readonly IConsoleStorage _storage;
         private readonly ConsoleOptions _options;
+        private readonly JobStorage _jobStorage;
         private double _lastTimeOffset;
         private int _nextProgressBarId;
         private bool _completed;
@@ -34,11 +36,12 @@ namespace Hangfire.Console.Server
             return (ConsoleContext)consoleContext;
         }
 
-        public ConsoleContext(ConsoleId consoleId, IConsoleStorage storage, ConsoleOptions options)
+        public ConsoleContext(ConsoleId consoleId, IConsoleStorage storage, ConsoleOptions options, JobStorage jobStorage = null)
         {
             _consoleId = consoleId ?? throw new ArgumentNullException(nameof(consoleId));
             _storage = storage ?? throw new ArgumentNullException(nameof(storage));
             _options = options ?? throw new ArgumentNullException(nameof(options));
+            _jobStorage = jobStorage;
 
             _lastTimeOffset = 0;
             _nextProgressBarId = 0;
@@ -109,13 +112,31 @@ namespace Hangfire.Console.Server
                 var ttl = _storage.GetConsoleTtl(_consoleId);
                 if (ttl <= TimeSpan.Zero)
                 {
-                    // A deleted job can keep running past its TTL and recreate console keys.
-                    // Remove those orphaned keys once the parent job has expired.
-                    if (_storage.GetState(_consoleId) == null)
+                    var state = _storage.GetState(_consoleId);
+                    if (state == null)
                     {
-                        _storage.Expire(_consoleId, TimeSpan.Zero);
+                        // A deleted job can keep running and recreate keys after its parent expires.
+                        ttl = TimeSpan.Zero;
                     }
-                    return;
+                    else
+                    {
+                        if (_jobStorage == null || string.Equals(state.Name, ProcessingState.StateName, StringComparison.OrdinalIgnoreCase))
+                            return;
+
+                        // SQL cleanup can leave an expired parent visible. Its expiration distinguishes
+                        // that case from persistent console keys without relying on provider TTL sentinels.
+                        var job = _jobStorage.GetMonitoringApi().JobDetails(_consoleId.JobId);
+                        if (job == null)
+                        {
+                            ttl = TimeSpan.Zero;
+                        }
+                        else
+                        {
+                            if (!job.ExpireAt.HasValue) return;
+                            ttl = job.ExpireAt.Value - DateTime.UtcNow;
+                            if (ttl < TimeSpan.Zero) ttl = TimeSpan.Zero;
+                        }
+                    }
                 }
 
                 _storage.Expire(_consoleId, ttl);

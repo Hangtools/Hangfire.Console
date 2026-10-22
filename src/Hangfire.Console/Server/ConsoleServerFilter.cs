@@ -46,7 +46,7 @@ namespace Hangfire.Console.Server
                 try
                 {
                     var consoleContext = new ConsoleContext(
-                        new ConsoleId(filterContext.BackgroundJob.Id, startedAt), new ConsoleStorage(connection, ownsConnection), _options);
+                        new ConsoleId(filterContext.BackgroundJob.Id, startedAt), new ConsoleStorage(connection, ownsConnection), _options, filterContext.Storage);
                     filterContext.Items[OwnedConsoleContextKey] = consoleContext;
                     filterContext.Items["ConsoleContext"] = consoleContext;
                 }

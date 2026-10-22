@@ -3,6 +3,7 @@ using Hangfire.Console.Server;
 using Hangfire.Server;
 using Hangfire.States;
 using Hangfire.Storage;
+using Hangfire.Storage.Monitoring;
 using Moq;
 using System;
 using System.Diagnostics.CodeAnalysis;
@@ -145,6 +146,26 @@ namespace Hangfire.Console.Tests.Server
             _consoleConnection.Verify(x => x.GetHashTtl(It.IsAny<string>()));
 
             _transaction.Verify(x => x.Commit(), Times.Never);
+        }
+
+        [Fact]
+        public void ExpiredParentStillVisible_UsesStorageExpirationToCleanConsole()
+        {
+            _connection.Setup(x => x.GetStateData("1")).Returns(CreateState(ProcessingState.StateName));
+            _consoleConnection.Setup(x => x.GetStateData("1")).Returns(CreateState(DeletedState.StateName));
+            _consoleConnection.Setup(x => x.GetHashTtl(It.IsAny<string>())).Returns(TimeSpan.FromSeconds(-0.3));
+            var monitoring = new Mock<IMonitoringApi>();
+            monitoring.Setup(x => x.JobDetails("1")).Returns(new JobDetailsDto { ExpireAt = DateTime.UtcNow.AddMinutes(-1) });
+            _storage.Setup(x => x.GetMonitoringApi()).Returns(monitoring.Object);
+            var performer = new BackgroundJobPerformer(CreateJobFilterProvider(true));
+
+            performer.Perform(CreatePerformContext());
+
+            monitoring.Verify(x => x.JobDetails("1"), Times.Once);
+            _transaction.Verify(x => x.ExpireSet(It.IsAny<string>(), TimeSpan.Zero), Times.Exactly(2));
+            _transaction.Verify(x => x.ExpireHash(It.IsAny<string>(), TimeSpan.Zero), Times.Exactly(2));
+            _consoleConnection.Verify(x => x.Dispose(), Times.Once);
+            _connection.Verify(x => x.Dispose(), Times.Never);
         }
 
         [Fact]

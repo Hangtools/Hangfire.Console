@@ -3,6 +3,7 @@ using Hangfire.Console.Server;
 using Hangfire.Console.Storage;
 using Hangfire.States;
 using Hangfire.Storage;
+using Hangfire.Storage.Monitoring;
 using Moq;
 using System;
 using System.Threading;
@@ -15,6 +16,8 @@ namespace Hangfire.Console.Tests.Server
     public class ConsoleContextFacts
     {
         private readonly Mock<IConsoleStorage> _storage;
+        private readonly Mock<JobStorage> _jobStorage;
+        private readonly Mock<IMonitoringApi> _monitoringApi;
 
         private readonly ConsoleOptions _options;
 
@@ -23,6 +26,9 @@ namespace Hangfire.Console.Tests.Server
             _storage = new Mock<IConsoleStorage>();
             _storage.Setup(x => x.GetState(It.IsAny<ConsoleId>()))
                 .Returns(new StateData { Name = ProcessingState.StateName });
+            _jobStorage = new Mock<JobStorage>();
+            _monitoringApi = new Mock<IMonitoringApi>();
+            _jobStorage.Setup(x => x.GetMonitoringApi()).Returns(_monitoringApi.Object);
             _options = new ConsoleOptions();
         }
 
@@ -332,6 +338,116 @@ namespace Hangfire.Console.Tests.Server
 
             _storage.Verify(x => x.GetConsoleTtl(It.IsAny<ConsoleId>()));
             _storage.Verify(x => x.Expire(It.IsAny<ConsoleId>(), It.IsAny<TimeSpan>()));
+        }
+
+        [Theory]
+        [InlineData(-0.3, -60, "Deleted")]
+        [InlineData(-1, -60, "CustomFinal")]
+        [InlineData(0, 3600, "Deleted")]
+        [InlineData(-1, 3600, "CustomFinal")]
+        [InlineData(-37, 3600, "CustomFinal")]
+        public void Complete_UsesParentExpirationWhenConsoleTtlIsNonpositive(double ttlSeconds, int expiresInSeconds, string stateName)
+        {
+            var expiresAt = DateTime.UtcNow.AddSeconds(expiresInSeconds);
+            _storage.Setup(x => x.GetConsoleTtl(It.IsAny<ConsoleId>())).Returns(TimeSpan.FromSeconds(ttlSeconds));
+            _storage.Setup(x => x.GetState(It.IsAny<ConsoleId>())).Returns(new StateData { Name = stateName });
+            _monitoringApi.Setup(x => x.JobDetails("1")).Returns(new JobDetailsDto { ExpireAt = expiresAt });
+            var actualTtl = TimeSpan.MinValue;
+            _storage.Setup(x => x.Expire(It.IsAny<ConsoleId>(), It.IsAny<TimeSpan>()))
+                .Callback<ConsoleId, TimeSpan>((_, ttl) => actualTtl = ttl);
+            var context = new ConsoleContext(new ConsoleId("1", DateTime.UtcNow), _storage.Object, _options, _jobStorage.Object);
+
+            var startedAt = DateTime.UtcNow;
+            context.Complete();
+            var finishedAt = DateTime.UtcNow;
+
+            if (expiresInSeconds < 0) Assert.Equal(TimeSpan.Zero, actualTtl);
+            else Assert.InRange(actualTtl, expiresAt - finishedAt, expiresAt - startedAt);
+            _monitoringApi.Verify(x => x.JobDetails("1"), Times.Once);
+            _storage.Verify(x => x.Expire(It.IsAny<ConsoleId>(), It.IsAny<TimeSpan>()), Times.Once);
+            _storage.Verify(x => x.Dispose(), Times.Once);
+        }
+
+        [Theory]
+        [InlineData("Failed")]
+        [InlineData("CustomState")]
+        public void Complete_PreservesSessionWhenParentExpirationIsUnavailable(string stateName)
+        {
+            _storage.Setup(x => x.GetConsoleTtl(It.IsAny<ConsoleId>())).Returns(TimeSpan.FromSeconds(-37));
+            _storage.Setup(x => x.GetState(It.IsAny<ConsoleId>())).Returns(new StateData { Name = stateName });
+            _monitoringApi.Setup(x => x.JobDetails("1")).Returns(new JobDetailsDto());
+            var context = new ConsoleContext(new ConsoleId("1", DateTime.UtcNow), _storage.Object, _options, _jobStorage.Object);
+
+            context.Complete();
+
+            _monitoringApi.Verify(x => x.JobDetails("1"), Times.Once);
+            _storage.Verify(x => x.Expire(It.IsAny<ConsoleId>(), It.IsAny<TimeSpan>()), Times.Never);
+            _storage.Verify(x => x.Dispose(), Times.Once);
+        }
+
+        [Fact]
+        public void Complete_ExpiresSessionWhenParentDisappearsBetweenReads()
+        {
+            _storage.Setup(x => x.GetConsoleTtl(It.IsAny<ConsoleId>())).Returns(TimeSpan.FromSeconds(-37));
+            _storage.Setup(x => x.GetState(It.IsAny<ConsoleId>())).Returns(new StateData { Name = "Deleted" });
+            _monitoringApi.Setup(x => x.JobDetails("1")).Returns((JobDetailsDto)null);
+            var context = new ConsoleContext(new ConsoleId("1", DateTime.UtcNow), _storage.Object, _options, _jobStorage.Object);
+
+            context.Complete();
+
+            _storage.Verify(x => x.Expire(It.IsAny<ConsoleId>(), TimeSpan.Zero), Times.Once);
+            _storage.Verify(x => x.Dispose(), Times.Once);
+        }
+
+        [Theory]
+        [InlineData(0, "Processing")]
+        [InlineData(-1, "Processing")]
+        [InlineData(-37, "processing")]
+        [InlineData(60, "Deleted")]
+        public void Complete_DoesNotReadMonitoringForProcessingOrPositiveTtl(double ttlSeconds, string stateName)
+        {
+            _storage.Setup(x => x.GetConsoleTtl(It.IsAny<ConsoleId>())).Returns(TimeSpan.FromSeconds(ttlSeconds));
+            _storage.Setup(x => x.GetState(It.IsAny<ConsoleId>())).Returns(new StateData { Name = stateName });
+            var context = new ConsoleContext(new ConsoleId("1", DateTime.UtcNow), _storage.Object, _options, _jobStorage.Object);
+
+            context.Complete();
+
+            _jobStorage.Verify(x => x.GetMonitoringApi(), Times.Never);
+            _storage.Verify(x => x.Expire(It.IsAny<ConsoleId>(), It.IsAny<TimeSpan>()),
+                ttlSeconds > 0 ? Times.Once() : Times.Never());
+        }
+
+        [Fact]
+        public void Complete_WithoutJobStoragePreservesNonprocessingSession()
+        {
+            _storage.Setup(x => x.GetConsoleTtl(It.IsAny<ConsoleId>())).Returns(TimeSpan.FromSeconds(-37));
+            _storage.Setup(x => x.GetState(It.IsAny<ConsoleId>())).Returns(new StateData { Name = "Deleted" });
+            var context = new ConsoleContext(new ConsoleId("1", DateTime.UtcNow), _storage.Object, _options);
+
+            context.Complete();
+
+            _storage.Verify(x => x.Expire(It.IsAny<ConsoleId>(), It.IsAny<TimeSpan>()), Times.Never);
+            _storage.Verify(x => x.Dispose(), Times.Once);
+        }
+
+        [Fact]
+        public void Complete_ReadsParentExpirationOutsideTheAmbientTransaction()
+        {
+            _storage.Setup(x => x.GetConsoleTtl(It.IsAny<ConsoleId>())).Returns(TimeSpan.FromSeconds(-37));
+            _storage.Setup(x => x.GetState(It.IsAny<ConsoleId>())).Returns(new StateData { Name = "CustomFinal" });
+            _monitoringApi.Setup(x => x.JobDetails("1"))
+                .Callback(() => Assert.Null(Transaction.Current))
+                .Returns(new JobDetailsDto { ExpireAt = DateTime.UtcNow.AddMinutes(-1) });
+            var context = new ConsoleContext(new ConsoleId("1", DateTime.UtcNow), _storage.Object, _options, _jobStorage.Object);
+
+            using (var transaction = new TransactionScope())
+            {
+                var ambient = Transaction.Current;
+                context.Complete();
+                Assert.Same(ambient, Transaction.Current);
+            }
+
+            _storage.Verify(x => x.Expire(It.IsAny<ConsoleId>(), TimeSpan.Zero), Times.Once);
         }
     }
 }

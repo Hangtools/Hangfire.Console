@@ -20,6 +20,7 @@
       • Close console connections reliably, ignore late writes, and clean up output recreated after job expiration
       • Preserve progress colors, poll the active requeued session, and serialize concurrent UseConsole initialization
       • Avoid disposing storage connections and expiration transactions more than once
+      • Release dashboard resize listeners when console polling stops
 
       v1.4.6:
       • Build console polling URLs with Hangfire's UrlHelper to support dashboard path prefixes
