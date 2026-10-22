@@ -14,6 +14,8 @@ namespace Hangfire.Console
     /// </summary>
     public static class GlobalConfigurationExtensions
     {
+        private static readonly object InitializationLock = new object();
+
         /// <summary>
         /// Configures Hangfire to use Console.
         /// </summary>
@@ -24,6 +26,14 @@ namespace Hangfire.Console
             if (configuration == null)
                 throw new ArgumentNullException(nameof(configuration));
 
+            lock (InitializationLock)
+            {
+                return Initialize(configuration, options);
+            }
+        }
+
+        private static IGlobalConfiguration Initialize(IGlobalConfiguration configuration, ConsoleOptions options)
+        {
             if (DashboardRoutes.Routes.Contains("/console/([0-9a-f]{11}.+)"))
                 return configuration;
 

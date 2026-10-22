@@ -329,6 +329,23 @@ namespace Hangfire.Console.Tests.Dashboard
                 "</div>", builder.ToString());
         }
         
+        [Theory]
+        [InlineData(null, "#ff0000")]
+        [InlineData("#0000ff", "#0000ff")]
+        public void RenderLineBuffer_PreservesProgressColorUntilExplicitlyChanged(string nextColor, string expectedColor)
+        {
+            SetupStorage(CreateState(ProcessingState.StateName, _consoleId.DateValue),
+                new ConsoleLine { Message = "1", ProgressValue = 0, TextColor = "#ff0000" },
+                new ConsoleLine { Message = "1", ProgressValue = 50, TimeOffset = 1, TextColor = nextColor },
+                new ConsoleLine { Message = "1", ProgressValue = 100, TimeOffset = 2 });
+            var builder = new StringBuilder();
+
+            ConsoleRenderer.RenderLineBuffer(builder, _storage.Object, _consoleId, 0);
+
+            Assert.Contains("class=\"line pb\" style=\"color:" + expectedColor + "\"", builder.ToString());
+            Assert.Contains("width:100%", builder.ToString());
+        }
+
         private StateData CreateState(string stateName, DateTime startedAt)
         {
             return new StateData()

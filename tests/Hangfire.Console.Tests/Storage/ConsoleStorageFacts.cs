@@ -56,6 +56,16 @@ namespace Hangfire.Console.Tests.Storage
         }
 
         [Fact]
+        public void Expire_DisposesItsTransactionOnce()
+        {
+            var storage = new ConsoleStorage(_connection.Object);
+
+            storage.Expire(_consoleId, TimeSpan.FromHours(1));
+
+            _transaction.Verify(x => x.Dispose(), Times.Once);
+        }
+
+        [Fact]
         public void InitConsole_ThrowsException_IfConsoleIdIsNull()
         {
             var storage = new ConsoleStorage(_connection.Object);

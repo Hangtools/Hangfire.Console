@@ -47,7 +47,7 @@ namespace Hangfire.Console.Monitoring
                             if (progressBars.TryGetValue(entry.Message, out var prev))
                             {
                                 prev.Progress = entry.ProgressValue.Value;
-                                prev.Color = entry.TextColor;
+                                prev.Color = entry.TextColor ?? prev.Color;
                                 continue;
                             }
                         }

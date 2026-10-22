@@ -84,6 +84,12 @@ public void TaskMethod(PerformContext context)
 }
 ```
 
+## Storage and job lifetime
+
+Console logging uses its own storage connection so it does not share a connection held by job filters. The .NET Framework and .NET Standard 2.0 builds keep console operations outside an ambient `TransactionScope`, so diagnostic messages survive a rollback of the job's transaction.
+
+Await all work that writes console output before returning from a job. When the job finishes, console logging closes its connection and ignores later text and progress updates. If a deleted job outlives its expiration and recreates console records, cleanup expires those records after the parent job is gone.
+
 ## Progress bars
 
 Version 1.1.0 adds support for inline progress bars:

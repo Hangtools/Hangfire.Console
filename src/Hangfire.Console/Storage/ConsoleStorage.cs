@@ -119,8 +119,8 @@ namespace Hangfire.Console.Storage
                 throw new ArgumentNullException(nameof(consoleId));
 
             using (var tran = (JobStorageTransaction)_connection.CreateWriteTransaction())
-            using (var expiration = new ConsoleExpirationTransaction(tran))
             {
+                var expiration = new ConsoleExpirationTransaction(tran);
                 expiration.Expire(consoleId, expireIn);
 
                 tran.Commit();

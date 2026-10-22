@@ -33,6 +33,7 @@ x64/
 # dotnet
 *.lock.json
 artifacts/
+node_modules/
 
 # MSTest test Results
 [Tt]est[Rr]esult*/

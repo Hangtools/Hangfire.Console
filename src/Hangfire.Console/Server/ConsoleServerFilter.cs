@@ -37,33 +37,33 @@ namespace Hangfire.Console.Server
             
             var startedAt = JobHelper.DeserializeDateTime(state.Data["StartedAt"]);
 
-            filterContext.Items["ConsoleContext"] = new ConsoleContext(
-                new ConsoleId(filterContext.BackgroundJob.Id, startedAt),
-                new ConsoleStorage(filterContext.Connection),
-                _options);
+            using (ConsoleContext.SuppressAmbientTransaction())
+            {
+                var connection = filterContext.Storage.GetConnection();
+                try
+                {
+                    filterContext.Items["ConsoleContext"] = new ConsoleContext(
+                        new ConsoleId(filterContext.BackgroundJob.Id, startedAt), new ConsoleStorage(connection), _options);
+                }
+                catch
+                {
+                    connection.Dispose();
+                    throw;
+                }
+            }
         }
 
         public void OnPerformed(PerformedContext filterContext)
         {
-            if (_options.FollowJobRetentionPolicy)
+            try
             {
-                // Console sessions follow parent job expiration.
-                // Normally, ConsoleApplyStateFilter will update expiration for all consoles, no extra work needed.
-
-                // If the running job is deleted from the Dashboard, ConsoleApplyStateFilter will be called immediately,
-                // but the job will continue running, unless IJobCancellationToken.ThrowIfCancellationRequested() is met. 
-                // If anything is written to console after the job was deleted, it won't get a correct expiration assigned.
-
-                // Need to re-apply expiration to prevent those records from becoming eternal garbage.
-                ConsoleContext.FromPerformContext(filterContext)?.FixExpiration();
+                // Stop late writes before fixing retention and releasing the console-owned connection.
+                ConsoleContext.FromPerformContext(filterContext)?.Complete();
             }
-            else
+            finally
             {
-                ConsoleContext.FromPerformContext(filterContext)?.Expire(_options.ExpireIn);
+                filterContext.Items.Remove("ConsoleContext");
             }
-            
-            // remove console context to prevent further writes from filters
-            filterContext.Items.Remove("ConsoleContext");
         }
     }
 }

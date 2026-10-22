@@ -1,8 +1,11 @@
 ﻿using Hangfire.Console.Serialization;
 using Hangfire.Console.Server;
 using Hangfire.Console.Storage;
+using Hangfire.States;
+using Hangfire.Storage;
 using Moq;
 using System;
+using System.Transactions;
 using Xunit;
 
 namespace Hangfire.Console.Tests.Server
@@ -16,7 +19,71 @@ namespace Hangfire.Console.Tests.Server
         public ConsoleContextFacts()
         {
             _storage = new Mock<IConsoleStorage>();
+            _storage.Setup(x => x.GetState(It.IsAny<ConsoleId>()))
+                .Returns(new StateData { Name = ProcessingState.StateName });
             _options = new ConsoleOptions();
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void ConsoleOperations_DoNotEnlistInTheJobTransaction(bool followJobRetention)
+        {
+            _storage.Setup(x => x.InitConsole(It.IsAny<ConsoleId>()))
+                .Callback(() => Assert.Null(Transaction.Current));
+            _storage.Setup(x => x.AddLine(It.IsAny<ConsoleId>(), It.IsAny<ConsoleLine>()))
+                .Callback(() => Assert.Null(Transaction.Current));
+            _storage.Setup(x => x.GetConsoleTtl(It.IsAny<ConsoleId>()))
+                .Callback(() => Assert.Null(Transaction.Current))
+                .Returns(TimeSpan.FromMinutes(1));
+            _storage.Setup(x => x.Expire(It.IsAny<ConsoleId>(), It.IsAny<TimeSpan>()))
+                .Callback(() => Assert.Null(Transaction.Current));
+            _options.FollowJobRetentionPolicy = followJobRetention;
+
+            using (var transaction = new TransactionScope())
+            {
+                var ambient = Transaction.Current;
+                var context = new ConsoleContext(new ConsoleId("1", DateTime.UtcNow), _storage.Object, _options);
+
+                context.WriteLine("Diagnostic message", null);
+                context.WriteProgressBar("Import", 50, null);
+                context.Complete();
+
+                Assert.Same(ambient, Transaction.Current);
+            }
+
+            _storage.Verify(x => x.Expire(It.IsAny<ConsoleId>(), It.IsAny<TimeSpan>()), Times.Once);
+            _storage.Verify(x => x.Dispose(), Times.Once);
+        }
+
+        [Fact]
+        public void Complete_IgnoresLateTextAndProgressWrites()
+        {
+            var context = new ConsoleContext(new ConsoleId("1", DateTime.UtcNow), _storage.Object, _options);
+            var progress = context.WriteProgressBar(null, 0, null);
+            _storage.Invocations.Clear();
+
+            context.Complete();
+            context.WriteLine("Late callback", null);
+            progress.SetValue(100);
+            context.Complete();
+
+            _storage.Verify(x => x.AddLine(It.IsAny<ConsoleId>(), It.IsAny<ConsoleLine>()), Times.Never);
+            _storage.Verify(x => x.Dispose(), Times.Once);
+        }
+
+        [Fact]
+        public void Complete_DisposesStorageEvenIfExpirationFails()
+        {
+            _options.FollowJobRetentionPolicy = false;
+            _storage.Setup(x => x.Expire(It.IsAny<ConsoleId>(), It.IsAny<TimeSpan>()))
+                .Throws(new InvalidOperationException("Storage unavailable"));
+            var context = new ConsoleContext(new ConsoleId("1", DateTime.UtcNow), _storage.Object, _options);
+
+            Assert.Throws<InvalidOperationException>(() => context.Complete());
+            context.Complete();
+
+            _storage.Verify(x => x.Dispose(), Times.Once);
         }
 
         [Fact]
@@ -167,11 +234,28 @@ namespace Hangfire.Console.Tests.Server
             _storage.Verify(x => x.Expire(It.IsAny<ConsoleId>(), It.IsAny<TimeSpan>()));
         }
         
-        [Fact]
-        public void FixExpiration_RequestsConsoleTtl_IgnoresIfNegative()
+        [Theory]
+        [InlineData(0)]
+        [InlineData(-1)]
+        public void FixExpiration_RemovesRecreatedKeysWhenParentHasExpired(int ttlSeconds)
         {
             _storage.Setup(x => x.GetConsoleTtl(It.IsAny<ConsoleId>()))
-                .Returns(TimeSpan.FromSeconds(-1));
+                .Returns(TimeSpan.FromSeconds(ttlSeconds));
+            _storage.Setup(x => x.GetState(It.IsAny<ConsoleId>())).Returns((StateData)null);
+            var context = new ConsoleContext(new ConsoleId("1", DateTime.UtcNow), _storage.Object, _options);
+
+            context.Complete();
+
+            _storage.Verify(x => x.Expire(It.IsAny<ConsoleId>(), TimeSpan.Zero), Times.Once);
+        }
+
+        [Theory]
+        [InlineData(0)]
+        [InlineData(-1)]
+        public void FixExpiration_DoesNotExpirePersistentConsoleWhileParentExists(int ttlSeconds)
+        {
+            _storage.Setup(x => x.GetConsoleTtl(It.IsAny<ConsoleId>()))
+                .Returns(TimeSpan.FromSeconds(ttlSeconds));
 
             var consoleId = new ConsoleId("1", new DateTime(2016, 1, 1, 0, 0, 0, DateTimeKind.Utc));
             var context = new ConsoleContext(consoleId, _storage.Object, _options);

@@ -15,6 +15,7 @@ namespace Hangfire.Console.Server
         private readonly ConsoleOptions _options;
         private double _lastTimeOffset;
         private int _nextProgressBarId;
+        private bool _completed;
 
         public static ConsoleContext FromPerformContext(PerformContext context)
         {
@@ -24,13 +25,13 @@ namespace Hangfire.Console.Server
                 return null;
             }
 
-            if (!context.Items.ContainsKey("ConsoleContext"))
+            if (!context.Items.TryGetValue("ConsoleContext", out var consoleContext))
             {
                 // Absence of ConsoleContext means ConsoleServerFilter was not properly added
                 return null;
             }
 
-            return (ConsoleContext)context.Items["ConsoleContext"];
+            return (ConsoleContext)consoleContext;
         }
 
         public ConsoleContext(ConsoleId consoleId, IConsoleStorage storage, ConsoleOptions options)
@@ -42,7 +43,10 @@ namespace Hangfire.Console.Server
             _lastTimeOffset = 0;
             _nextProgressBarId = 0;
 
-            _storage.InitConsole(_consoleId);
+            using (SuppressAmbientTransaction())
+            {
+                _storage.InitConsole(_consoleId);
+            }
         }
 
         public ConsoleTextColor TextColor { get; set; }
@@ -54,6 +58,8 @@ namespace Hangfire.Console.Server
 
             lock (this)
             {
+                if (_completed) return;
+
                 line.TimeOffset = Math.Round((DateTime.UtcNow - _consoleId.DateValue).TotalSeconds, 3);
 
                 if (_lastTimeOffset >= line.TimeOffset)
@@ -64,7 +70,10 @@ namespace Hangfire.Console.Server
 
                 _lastTimeOffset = line.TimeOffset;
 
-                _storage.AddLine(_consoleId, line);
+                using (SuppressAmbientTransaction())
+                {
+                    _storage.AddLine(_consoleId, line);
+                }
             }
         }
         
@@ -87,20 +96,59 @@ namespace Hangfire.Console.Server
         
         public void Expire(TimeSpan expireIn)
         {
-            _storage.Expire(_consoleId, expireIn);
+            using (SuppressAmbientTransaction())
+            {
+                _storage.Expire(_consoleId, expireIn);
+            }
         }
 
         public void FixExpiration()
         {
-            var ttl = _storage.GetConsoleTtl(_consoleId);
-            if (ttl <= TimeSpan.Zero)
+            using (SuppressAmbientTransaction())
             {
-                // ConsoleApplyStateFilter not called yet, or current job state is not final.
-                // Either way, there's no need to expire console here.
-                return;
+                var ttl = _storage.GetConsoleTtl(_consoleId);
+                if (ttl <= TimeSpan.Zero)
+                {
+                    // A deleted job can keep running past its TTL and recreate console keys.
+                    // Remove those orphaned keys once the parent job has expired.
+                    if (_storage.GetState(_consoleId) == null)
+                    {
+                        _storage.Expire(_consoleId, TimeSpan.Zero);
+                    }
+                    return;
+                }
+
+                _storage.Expire(_consoleId, ttl);
             }
-            
-            _storage.Expire(_consoleId, ttl);
+        }
+
+        public void Complete()
+        {
+            lock (this)
+            {
+                if (_completed) return;
+                _completed = true;
+
+                try
+                {
+                    if (_options.FollowJobRetentionPolicy) FixExpiration();
+                    else Expire(_options.ExpireIn);
+                }
+                finally
+                {
+                    _storage.Dispose();
+                }
+            }
+        }
+
+        internal static IDisposable SuppressAmbientTransaction()
+        {
+#if NET451 || NETSTANDARD2_0
+            return new System.Transactions.TransactionScope(System.Transactions.TransactionScopeOption.Suppress);
+#else
+            // .NET Standard 1.3 does not expose TransactionScope.
+            return null;
+#endif
         }
     }
 }

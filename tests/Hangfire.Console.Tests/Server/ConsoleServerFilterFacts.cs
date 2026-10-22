@@ -17,6 +17,7 @@ namespace Hangfire.Console.Tests.Server
         private readonly Mock<IJobCancellationToken> _cancellationToken;
         private readonly Mock<JobStorage> _storage;
         private readonly Mock<JobStorageConnection> _connection;
+        private readonly Mock<JobStorageConnection> _consoleConnection;
         private readonly Mock<JobStorageTransaction> _transaction;
 
         public ConsoleServerFilterFacts()
@@ -25,10 +26,15 @@ namespace Hangfire.Console.Tests.Server
             _cancellationToken = new Mock<IJobCancellationToken>();
             _storage = new Mock<JobStorage>();
             _connection = new Mock<JobStorageConnection>();
+            _consoleConnection = new Mock<JobStorageConnection>();
             _transaction = new Mock<JobStorageTransaction>();
 
             _storage.Setup(x => x.GetConnection())
-                .Returns(_connection.Object);
+                .Returns(_consoleConnection.Object);
+            _consoleConnection.Setup(x => x.CreateWriteTransaction())
+                .Returns(_transaction.Object);
+            _consoleConnection.Setup(x => x.GetStateData("1"))
+                .Returns(CreateState(ProcessingState.StateName));
             _connection.Setup(x => x.CreateWriteTransaction())
                 .Returns(_transaction.Object);
         }
@@ -87,7 +93,7 @@ namespace Hangfire.Console.Tests.Server
         {
             _connection.Setup(x => x.GetStateData("1"))
                 .Returns(CreateState(ProcessingState.StateName));
-            _connection.Setup(x => x.GetHashTtl(It.IsAny<string>()))
+            _consoleConnection.Setup(x => x.GetHashTtl(It.IsAny<string>()))
                 .Returns(TimeSpan.FromSeconds(1));
 
             var performer = new BackgroundJobPerformer(CreateJobFilterProvider(true));
@@ -98,7 +104,7 @@ namespace Hangfire.Console.Tests.Server
             var consoleContext = ConsoleContext.FromPerformContext(context);
             Assert.Null(consoleContext);
 
-            _connection.Verify(x => x.GetHashTtl(It.IsAny<string>()));
+            _consoleConnection.Verify(x => x.GetHashTtl(It.IsAny<string>()));
 
             _transaction.Verify(x => x.ExpireSet(It.IsAny<string>(), It.IsAny<TimeSpan>()));
             _transaction.Verify(x => x.ExpireHash(It.IsAny<string>(), It.IsAny<TimeSpan>()));
@@ -111,7 +117,7 @@ namespace Hangfire.Console.Tests.Server
         {
             _connection.Setup(x => x.GetStateData("1"))
                 .Returns(CreateState(ProcessingState.StateName));
-            _connection.Setup(x => x.GetHashTtl(It.IsAny<string>()))
+            _consoleConnection.Setup(x => x.GetHashTtl(It.IsAny<string>()))
                 .Returns(TimeSpan.FromSeconds(-1));
 
             var performer = new BackgroundJobPerformer(CreateJobFilterProvider(true));
@@ -122,7 +128,7 @@ namespace Hangfire.Console.Tests.Server
             var consoleContext = ConsoleContext.FromPerformContext(context);
             Assert.Null(consoleContext);
 
-            _connection.Verify(x => x.GetHashTtl(It.IsAny<string>()));
+            _consoleConnection.Verify(x => x.GetHashTtl(It.IsAny<string>()));
 
             _transaction.Verify(x => x.Commit(), Times.Never);
         }
@@ -132,7 +138,7 @@ namespace Hangfire.Console.Tests.Server
         {
             _connection.Setup(x => x.GetStateData("1"))
                 .Returns(CreateState(ProcessingState.StateName));
-            _connection.Setup(x => x.GetHashTtl(It.IsAny<string>()))
+            _consoleConnection.Setup(x => x.GetHashTtl(It.IsAny<string>()))
                 .Returns(TimeSpan.Zero);
 
             var performer = new BackgroundJobPerformer(CreateJobFilterProvider(true));
@@ -143,7 +149,7 @@ namespace Hangfire.Console.Tests.Server
             var consoleContext = ConsoleContext.FromPerformContext(context);
             Assert.Null(consoleContext);
 
-            _connection.Verify(x => x.GetHashTtl(It.IsAny<string>()));
+            _consoleConnection.Verify(x => x.GetHashTtl(It.IsAny<string>()));
 
             _transaction.Verify(x => x.Commit(), Times.Never);
         }
@@ -162,12 +168,55 @@ namespace Hangfire.Console.Tests.Server
             var consoleContext = ConsoleContext.FromPerformContext(context);
             Assert.Null(consoleContext);
 
-            _connection.Verify(x => x.GetHashTtl(It.IsAny<string>()), Times.Never);
+            _consoleConnection.Verify(x => x.GetHashTtl(It.IsAny<string>()), Times.Never);
 
             _transaction.Verify(x => x.ExpireSet(It.IsAny<string>(), It.IsAny<TimeSpan>()));
             _transaction.Verify(x => x.ExpireHash(It.IsAny<string>(), It.IsAny<TimeSpan>()));
 
             _transaction.Verify(x => x.Commit());
+        }
+
+        [Fact]
+        public void ConsoleOwnsAndDisposesItsConnection_WithoutDisposingJobConnection()
+        {
+            _connection.Setup(x => x.GetStateData("1"))
+                .Returns(CreateState(ProcessingState.StateName));
+            var performer = new BackgroundJobPerformer(CreateJobFilterProvider());
+
+            performer.Perform(CreatePerformContext());
+
+            _storage.Verify(x => x.GetConnection(), Times.Once);
+            _consoleConnection.Verify(x => x.Dispose(), Times.Once);
+            _connection.Verify(x => x.CreateWriteTransaction(), Times.Never);
+            _connection.Verify(x => x.Dispose(), Times.Never);
+        }
+
+        [Fact]
+        public void InitializationFailureDisposesConsoleConnection()
+        {
+            _connection.Setup(x => x.GetStateData("1"))
+                .Returns(CreateState(ProcessingState.StateName));
+            _transaction.Setup(x => x.Commit()).Throws(new InvalidOperationException("Storage unavailable"));
+            var filter = new ConsoleServerFilter(new ConsoleOptions());
+
+            Assert.Throws<InvalidOperationException>(() => filter.OnPerforming(new PerformingContext(CreatePerformContext())));
+
+            _consoleConnection.Verify(x => x.Dispose(), Times.Once);
+            _connection.Verify(x => x.Dispose(), Times.Never);
+        }
+
+        [Fact]
+        public void UnsupportedConsoleConnectionIsDisposed()
+        {
+            _connection.Setup(x => x.GetStateData("1"))
+                .Returns(CreateState(ProcessingState.StateName));
+            var connection = new Mock<IStorageConnection>();
+            _storage.Setup(x => x.GetConnection()).Returns(connection.Object);
+            var filter = new ConsoleServerFilter(new ConsoleOptions());
+
+            Assert.Throws<NotSupportedException>(() => filter.OnPerforming(new PerformingContext(CreatePerformContext())));
+
+            connection.Verify(x => x.Dispose(), Times.Once);
         }
 
         [SuppressMessage("Usage", "xUnit1013", Justification = "Hangfire job methods must be public for Job.FromExpression")]
