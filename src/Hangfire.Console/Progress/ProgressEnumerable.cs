@@ -32,7 +32,7 @@ namespace Hangfire.Console.Progress
         {
             private readonly IEnumerator _enumerator;
             private readonly IProgressBar _progressBar;
-            private int _count, _index;
+            private int _count, _index, _lastProgress;
 
             public Enumerator(IEnumerator enumerator, IProgressBar progressBar, int count)
             {
@@ -40,6 +40,7 @@ namespace Hangfire.Console.Progress
                 _progressBar = progressBar;
                 _count = count;
                 _index = -1;
+                _lastProgress = -1;
             }
             
             public object Current => _enumerator.Current;
@@ -69,7 +70,14 @@ namespace Hangfire.Console.Progress
                         _count = _index + 1;
                     }
 
-                    _progressBar.SetValue(_index * 100.0 / _count);
+                    var value = _index * 100.0 / _count;
+                    var progress = (int)value;
+                    if (progress != _lastProgress)
+                    {
+                        // Report at most once per whole percentage point, retaining the actual value.
+                        _progressBar.SetValue(value);
+                        _lastProgress = progress;
+                    }
                 }
                 return r;
             }
@@ -78,6 +86,7 @@ namespace Hangfire.Console.Progress
             {
                 _enumerator.Reset();
                 _index = -1;
+                _lastProgress = -1;
             }
         }
     }
@@ -116,7 +125,7 @@ namespace Hangfire.Console.Progress
         {
             private readonly IEnumerator<T> _enumerator;
             private readonly IProgressBar _progressBar;
-            private int _count, _index;
+            private int _count, _index, _lastProgress;
 
             public Enumerator(IEnumerator<T> enumerator, IProgressBar progressBar, int count)
             {
@@ -124,6 +133,7 @@ namespace Hangfire.Console.Progress
                 _progressBar = progressBar;
                 _count = count;
                 _index = -1;
+                _lastProgress = -1;
             }
 
             public T Current => _enumerator.Current;
@@ -155,7 +165,14 @@ namespace Hangfire.Console.Progress
                         _count = _index + 1;
                     }
 
-                    _progressBar.SetValue(_index * 100.0 / _count);
+                    var value = _index * 100.0 / _count;
+                    var progress = (int)value;
+                    if (progress != _lastProgress)
+                    {
+                        // Report at most once per whole percentage point, retaining the actual value.
+                        _progressBar.SetValue(value);
+                        _lastProgress = progress;
+                    }
                 }
                 return r;
             }
@@ -164,6 +181,7 @@ namespace Hangfire.Console.Progress
             {
                 _enumerator.Reset();
                 _index = -1;
+                _lastProgress = -1;
             }
         }
     }

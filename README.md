@@ -123,6 +123,10 @@ public void TaskMethod(PerformContext context)
 
 It will automatically update progress bar during enumeration, and will set progress to 100% if for-each loop was interrupted with a `break` instruction.
 
+To limit storage load for large collections, `WithProgress` reports at most once per whole percentage point, plus the final 100% update (at most 101 updates per enumeration). Reported values retain their fractional precision; direct `SetValue` calls continue to use `ConsoleOptions.ProgressBarDecimalDigits`.
+
+Each `WriteLine` call still writes to storage. Avoid logging every item in a large collection; use the progress bar and log occasional summaries instead.
+
 **NOTE**: If the number of items in the collection cannot be determined automatically (e.g. collection doesn't implement `ICollection`/`ICollection<T>`/`IReadOnlyCollection<T>`, you'll need to pass additional argument `count` to the extension method).
 
 ## Credits
