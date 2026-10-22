@@ -8,7 +8,8 @@ namespace Hangfire.Console.Tests.Stubs
         public DashboardContextStub(
             DashboardOptions options, 
             DashboardRequest dashboardRequest,
-            DashboardResponse dashboardResponse) : base(new JobStorageStub(), options)
+            DashboardResponse dashboardResponse,
+            JobStorage storage = null) : base(storage ?? new JobStorageStub(), options)
         {
             Request = dashboardRequest;
             Response = dashboardResponse;

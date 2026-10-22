@@ -39,7 +39,7 @@ namespace Hangfire.Console.Dashboard
                 // there are some jobs to process
                 
                 using (var connection = context.Storage.GetConnection())
-                using (var storage = new ConsoleStorage(connection))
+                using (var storage = new ConsoleStorage(connection, ownsConnection: false))
                 {
                     foreach (var jobId in jobIds)
                     {
