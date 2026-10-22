@@ -104,14 +104,17 @@ namespace Hangfire.Console.Tests.Progress
             var values = new List<double>();
             var bar = CreateProgressBar(values);
             var visited = 0;
+            // Range implements ICollection<T> on newer runtimes, which overrides the supplied count.
+            var items = Enumerable.Range(0, 1_000).Where(item => true);
 
-            foreach (var item in WithProgress(Enumerable.Range(0, 1_000), bar, count, generic))
+            foreach (var item in WithProgress(items, bar, count, generic))
             {
                 visited++;
             }
 
             Assert.Equal(1_000, visited);
             Assert.InRange(values.Count, 2, 101);
+            Assert.Equal(50, values[1]);
             Assert.Equal(100, values[values.Count - 1]);
             Assert.All(values, value => Assert.InRange(value, 0, 100));
         }

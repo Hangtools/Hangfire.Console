@@ -125,3 +125,44 @@ test('stops polling and releases the resize listener when the parent job expires
         dom.window.close();
     }
 });
+
+test('keeps polling and progress bounded through repeated updates and a failed request', () => {
+    const { dom, $, timers, requests, resizeListeners } = openJobHistory([
+        { id: 'old', cursor: -1 }, { id: 'current', cursor: 0, empty: true }
+    ]);
+    try {
+        let cursor = 0;
+        for (let value = 0; value <= 100; value++) {
+            tickPoll(timers);
+            const request = requests[requests.length - 1];
+            assert.equal(request.url, '/hangfire/console/current');
+            assert.equal(request.data.start, cursor);
+            request.respond(`<div class="line-buffer" data-n="${++cursor}"><div class="line pb" data-id="1"${value === 0 ? ' style="color:#ff0000"' : ''}><div class="pv" style="width:${value}%" data-value="${value}"></div></div></div>`);
+            request.finish();
+
+            const bar = $('.console[data-id="current"] .line.pb');
+            assert.equal(bar.length, 1);
+            assert.equal(bar.attr('style'), 'color:#ff0000');
+            assert.equal(bar.find('.pv').attr('data-value'), String(value));
+            assert.equal(timers.filter(timer => timer.delay === 1000).length, 1);
+            assert.equal(resizeListeners.size, 1);
+
+            if (value === 50) {
+                tickPoll(timers);
+                const failedRequest = requests[requests.length - 1];
+                assert.equal(failedRequest.data.start, cursor);
+                failedRequest.finish();
+            }
+        }
+
+        tickPoll(timers);
+        requests[requests.length - 1].respond('<div class="line-buffer" data-n="-2"></div>');
+        requests[requests.length - 1].finish();
+        tickPoll(timers);
+        assert.equal(timers.filter(timer => timer.delay === 1000).length, 0);
+        assert.equal(resizeListeners.size, 0);
+        assert.equal($('.console.active').length, 0);
+    } finally {
+        dom.window.close();
+    }
+});
