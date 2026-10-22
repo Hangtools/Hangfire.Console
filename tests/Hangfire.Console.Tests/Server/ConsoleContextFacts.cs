@@ -27,9 +27,11 @@ namespace Hangfire.Console.Tests.Server
         }
 
         [Theory]
-        [InlineData(true)]
-        [InlineData(false)]
-        public void ConsoleOperations_DoNotEnlistInTheJobTransaction(bool followJobRetention)
+        [InlineData(true, true)]
+        [InlineData(true, false)]
+        [InlineData(false, true)]
+        [InlineData(false, false)]
+        public async Task ConsoleOperations_DoNotEnlistInTheJobTransaction(bool followJobRetention, bool asyncFlow)
         {
             _storage.Setup(x => x.InitConsole(It.IsAny<ConsoleId>()))
                 .Callback(() => Assert.Null(Transaction.Current));
@@ -42,9 +44,11 @@ namespace Hangfire.Console.Tests.Server
                 .Callback(() => Assert.Null(Transaction.Current));
             _options.FollowJobRetentionPolicy = followJobRetention;
 
-            using (var transaction = new TransactionScope())
+            using (var transaction = new TransactionScope(TransactionScopeOption.Required,
+                asyncFlow ? TransactionScopeAsyncFlowOption.Enabled : TransactionScopeAsyncFlowOption.Suppress))
             {
                 var ambient = Transaction.Current;
+                if (asyncFlow) await Task.Yield();
                 var context = new ConsoleContext(new ConsoleId("1", DateTime.UtcNow), _storage.Object, _options);
 
                 context.WriteLine("Diagnostic message", null);

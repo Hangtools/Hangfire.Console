@@ -7,6 +7,7 @@ using Moq;
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
+using System.Threading;
 using Xunit;
 
 namespace Hangfire.Console.Tests.Server
@@ -287,6 +288,30 @@ namespace Hangfire.Console.Tests.Server
             Assert.Same(failure, exception.InnerException);
             Assert.DoesNotContain(context.Items.Values, item => item is ConsoleContext);
             _consoleConnection.Verify(x => x.Dispose(), Times.Once);
+            _connection.Verify(x => x.Dispose(), Times.Never);
+        }
+
+        [Theory]
+        [InlineData(true, true)]
+        [InlineData(true, false)]
+        [InlineData(false, true)]
+        [InlineData(false, false)]
+        public void JobCancellation_ClosesConsoleAndPreservesCancellation(bool withStorage, bool shutdown)
+        {
+            _connection.Setup(x => x.GetStateData("1"))
+                .Returns(CreateState(ProcessingState.StateName));
+            _cancellationToken.SetupGet(x => x.ShutdownToken)
+                .Returns(new CancellationToken(shutdown));
+            var context = CreatePerformContext(withStorage);
+            Exception cancellation = shutdown ? (Exception)new OperationCanceledException() : new JobAbortedException();
+            context.Items["failure"] = cancellation;
+
+            var exception = Record.Exception(() =>
+                new BackgroundJobPerformer(CreateJobFilterProvider()).Perform(context));
+
+            Assert.Same(cancellation, exception);
+            Assert.DoesNotContain(context.Items.Values, item => item is ConsoleContext);
+            _consoleConnection.Verify(x => x.Dispose(), withStorage ? Times.Once() : Times.Never());
             _connection.Verify(x => x.Dispose(), Times.Never);
         }
 
