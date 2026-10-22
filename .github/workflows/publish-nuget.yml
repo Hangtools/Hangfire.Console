@@ -56,6 +56,19 @@ jobs:
       - name: Test
         run: dotnet test tests/Hangfire.Console.Tests/Hangfire.Console.Tests.csproj -c Release --no-build --no-restore
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: tests/Hangfire.Console.JavaScript.Tests/package-lock.json
+
+      - name: Test dashboard polling
+        working-directory: tests/Hangfire.Console.JavaScript.Tests
+        run: |
+          npm ci
+          npm test
+
       - name: Pack
         run: dotnet pack src/Hangfire.Console/Hangfire.Console.csproj -c Release --no-build --no-restore -o artifacts /p:ContinuousIntegrationBuild=true /p:Version=${{ steps.version.outputs.package_version }}
 

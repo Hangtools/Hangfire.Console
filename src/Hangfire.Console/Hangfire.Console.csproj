@@ -2,7 +2,7 @@
   <PropertyGroup>
     <Description>Job console for Hangfire</Description>
     <AssemblyTitle>Hangfire.Console</AssemblyTitle>
-    <VersionPrefix>1.4.5</VersionPrefix>
+    <VersionPrefix>1.4.7</VersionPrefix>
     <Authors>Alexey Skalozub</Authors>
     <TargetFrameworks>net451;netstandard1.3;netstandard2.0</TargetFrameworks>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
@@ -14,6 +14,16 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>hangfire;console;logging</PackageTags>
     <PackageReleaseNotes>History:
+      v1.4.7:
+      • Limit WithProgress collection updates to whole percentage points while preserving fractional values and completion
+      • Isolate console writes from the worker connection and ambient job transactions on supported frameworks
+      • Close console connections reliably, ignore late writes, and clean up output recreated after job expiration
+      • Preserve progress colors, poll the active requeued session, and serialize concurrent UseConsole initialization
+      • Avoid disposing storage connections and expiration transactions more than once
+
+      v1.4.6:
+      • Build console polling URLs with Hangfire's UrlHelper to support dashboard path prefixes
+
       v1.4.5:
       • UseConsole() no longer throws when called more than once (returns silently instead, fixes #120)
       • DefaultProgressBar normalizes empty name/color values to null
