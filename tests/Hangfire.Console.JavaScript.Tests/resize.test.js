@@ -18,13 +18,17 @@ test('removes the real resize scroll listener when its last subscriber is remove
     const captureValue = options => typeof options === 'boolean' ? options : Boolean(options && options.capture);
 
     buffer.addEventListener = (type, listener, options) => {
-        if (type === 'scroll') scrollListeners.push({ listener, capture: captureValue(options) });
+        if (type === 'scroll') {
+            scrollListeners.push({ listener, capture: captureValue(options) });
+        }
         addEventListener(type, listener, options);
     };
     buffer.removeEventListener = (type, listener, options) => {
         if (type === 'scroll') {
             const index = scrollListeners.findIndex(entry => entry.listener === listener && entry.capture === captureValue(options));
-            if (index !== -1) scrollListeners.splice(index, 1);
+            if (index !== -1) {
+                scrollListeners.splice(index, 1);
+            }
         }
         removeEventListener(type, listener, options);
     };

@@ -69,7 +69,10 @@ namespace Hangfire.Console.Tests.Progress
 
             foreach (var item in WithProgress(Enumerable.Range(0, 1_000), bar, 1_000, generic))
             {
-                if (item == 5) break;
+                if (item == 5)
+                {
+                    break;
+                }
             }
 
             Assert.Equal(new[] { 0.0, 100.0 }, values);
@@ -87,7 +90,10 @@ namespace Hangfire.Console.Tests.Progress
             {
                 foreach (var item in WithProgress(Enumerable.Range(0, 1_000), bar, 1_000, generic))
                 {
-                    if (item == 5) throw new InvalidOperationException();
+                    if (item == 5)
+                    {
+                        throw new InvalidOperationException();
+                    }
                 }
             });
 

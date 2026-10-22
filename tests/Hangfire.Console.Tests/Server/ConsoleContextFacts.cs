@@ -54,7 +54,10 @@ namespace Hangfire.Console.Tests.Server
                 asyncFlow ? TransactionScopeAsyncFlowOption.Enabled : TransactionScopeAsyncFlowOption.Suppress))
             {
                 var ambient = Transaction.Current;
-                if (asyncFlow) await Task.Yield();
+                if (asyncFlow)
+                {
+                    await Task.Yield();
+                }
                 var context = new ConsoleContext(new ConsoleId("1", DateTime.UtcNow), _storage.Object, _options);
 
                 context.WriteLine("Diagnostic message", null);
@@ -361,8 +364,14 @@ namespace Hangfire.Console.Tests.Server
             context.Complete();
             var finishedAt = DateTime.UtcNow;
 
-            if (expiresInSeconds < 0) Assert.Equal(TimeSpan.Zero, actualTtl);
-            else Assert.InRange(actualTtl, expiresAt - finishedAt, expiresAt - startedAt);
+            if (expiresInSeconds < 0)
+            {
+                Assert.Equal(TimeSpan.Zero, actualTtl);
+            }
+            else
+            {
+                Assert.InRange(actualTtl, expiresAt - finishedAt, expiresAt - startedAt);
+            }
             _monitoringApi.Verify(x => x.JobDetails("1"), Times.Once);
             _storage.Verify(x => x.Expire(It.IsAny<ConsoleId>(), It.IsAny<TimeSpan>()), Times.Once);
             _storage.Verify(x => x.Dispose(), Times.Once);

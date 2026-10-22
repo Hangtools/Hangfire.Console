@@ -23,15 +23,21 @@ namespace Hangfire.Console.Tests.Dashboard
         {
             var connection = new Mock<JobStorageConnection>();
             var state = connection.Setup(x => x.GetStateData("1"));
-            if (failRead) state.Throws(new InvalidOperationException("Storage unavailable"));
-            else state.Returns(new StateData
+            if (failRead)
             {
-                Name = ProcessingState.StateName,
-                Data = new Dictionary<string, string>
+                state.Throws(new InvalidOperationException("Storage unavailable"));
+            }
+            else
+            {
+                state.Returns(new StateData
                 {
-                    ["StartedAt"] = JobHelper.SerializeDateTime(DateTime.UtcNow)
-                }
-            });
+                    Name = ProcessingState.StateName,
+                    Data = new Dictionary<string, string>
+                    {
+                        ["StartedAt"] = JobHelper.SerializeDateTime(DateTime.UtcNow)
+                    }
+                });
+            }
             connection.Setup(x => x.GetValueFromHash(It.IsAny<string>(), "progress")).Returns("42");
             var storage = new Mock<JobStorage>();
             storage.Setup(x => x.GetConnection()).Returns(connection.Object);
@@ -45,7 +51,10 @@ namespace Hangfire.Console.Tests.Dashboard
                 var context = new DashboardContextStub(new DashboardOptions(), request.Object, response, storage.Object);
                 var dispatcher = new JobProgressDispatcher(new ConsoleOptions());
 
-                if (failRead) await Assert.ThrowsAsync<InvalidOperationException>(() => dispatcher.Dispatch(context));
+                if (failRead)
+                {
+                    await Assert.ThrowsAsync<InvalidOperationException>(() => dispatcher.Dispatch(context));
+                }
                 else
                 {
                     await dispatcher.Dispatch(context);

@@ -277,17 +277,27 @@ namespace Hangfire.Console.Tests.Server
             _connection.Setup(x => x.GetStateData("1"))
                 .Returns(CreateState(ProcessingState.StateName));
             if (cancel)
+            {
                 _otherFilter.Setup(x => x.OnPerforming(It.IsAny<PerformingContext>()))
                     .Callback<PerformingContext>(x => x.Canceled = true);
+            }
             else
+            {
                 _otherFilter.Setup(x => x.OnPerforming(It.IsAny<PerformingContext>()))
                     .Throws(new InvalidOperationException("Another filter failed"));
+            }
             var performer = new BackgroundJobPerformer(CreateJobFilterProvider());
             var context = CreatePerformContext();
 
-            if (cancel) performer.Perform(context);
-            else Assert.IsType<InvalidOperationException>(Assert.Throws<JobPerformanceException>(
-                () => performer.Perform(context)).InnerException);
+            if (cancel)
+            {
+                performer.Perform(context);
+            }
+            else
+            {
+                Assert.IsType<InvalidOperationException>(Assert.Throws<JobPerformanceException>(
+                    () => performer.Perform(context)).InnerException);
+            }
 
             Assert.DoesNotContain(context.Items.Values, item => item is ConsoleContext);
             _consoleConnection.Verify(x => x.Dispose(), Times.Once);
@@ -387,7 +397,10 @@ namespace Hangfire.Console.Tests.Server
             // reset transaction method calls after OnPerforming is completed
             var @this = (ConsoleServerFilterFacts)context.Items["this"];
             @this._transaction.Invocations.Clear();
-            if (context.Items.TryGetValue("failure", out var failure)) throw (Exception)failure;
+            if (context.Items.TryGetValue("failure", out var failure))
+            {
+                throw (Exception)failure;
+            }
         }
 
         private IJobFilterProvider CreateJobFilterProvider(bool followJobRetention = false)

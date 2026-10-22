@@ -39,7 +39,9 @@ function openJobHistory(sessions) {
     window.eval(script);
     window.document.dispatchEvent(new window.Event('DOMContentLoaded'));
     for (let index = 0; index < timers.length; index++) {
-        if (timers[index].delay === 0) timers[index].callback();
+        if (timers[index].delay === 0) {
+            timers[index].callback();
+        }
     }
 
     return { dom, $, timers, requests, resizeListeners };
@@ -54,7 +56,9 @@ function tickPoll(timers) {
 for (const currentFirst of [true, false]) {
     test(`polls the current session when it is ${currentFirst ? 'first' : 'last'} in history`, () => {
         const sessions = [{ id: 'current', cursor: 5 }, { id: 'old', cursor: -1 }];
-        if (!currentFirst) sessions.reverse();
+        if (!currentFirst) {
+            sessions.reverse();
+        }
         const { dom, $, timers, requests } = openJobHistory(sessions);
         try {
             assert.equal($('.console.active').data('id'), 'current');

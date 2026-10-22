@@ -28,7 +28,10 @@ namespace Hangfire.Console.Storage
 
         public void Dispose()
         {
-            if (_ownsConnection) _connection.Dispose();
+            if (_ownsConnection)
+            {
+                _connection.Dispose();
+            }
         }
 
         public void InitConsole(ConsoleId consoleId)

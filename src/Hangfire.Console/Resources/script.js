@@ -293,7 +293,9 @@ $(function () {
             return parseInt($(".line-buffer", this).data('n'), 10) >= 0;
         }).first();
 
-        if (currentConsole.length === 0) currentConsole = consoles.first();
+        if (currentConsole.length === 0) {
+            currentConsole = consoles.first();
+        }
 
         consoles.each(function () {
             var $this = $(this),

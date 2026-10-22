@@ -61,7 +61,10 @@ namespace Hangfire.Console.Server
 
             lock (this)
             {
-                if (_completed) return;
+                if (_completed)
+                {
+                    return;
+                }
 
                 line.TimeOffset = Math.Round((DateTime.UtcNow - _consoleId.DateValue).TotalSeconds, 3);
 
@@ -121,7 +124,9 @@ namespace Hangfire.Console.Server
                     else
                     {
                         if (_jobStorage == null || string.Equals(state.Name, ProcessingState.StateName, StringComparison.OrdinalIgnoreCase))
+                        {
                             return;
+                        }
 
                         // SQL cleanup can leave an expired parent visible. Its expiration distinguishes
                         // that case from persistent console keys without relying on provider TTL sentinels.
@@ -132,9 +137,16 @@ namespace Hangfire.Console.Server
                         }
                         else
                         {
-                            if (!job.ExpireAt.HasValue) return;
+                            if (!job.ExpireAt.HasValue)
+                            {
+                                return;
+                            }
+
                             ttl = job.ExpireAt.Value - DateTime.UtcNow;
-                            if (ttl < TimeSpan.Zero) ttl = TimeSpan.Zero;
+                            if (ttl < TimeSpan.Zero)
+                            {
+                                ttl = TimeSpan.Zero;
+                            }
                         }
                     }
                 }
@@ -147,15 +159,25 @@ namespace Hangfire.Console.Server
         {
             lock (this)
             {
-                if (_completed) return;
+                if (_completed)
+                {
+                    return;
+                }
+
                 _completed = true;
 
                 try
                 {
                     if (applyRetention)
                     {
-                        if (_options.FollowJobRetentionPolicy) FixExpiration();
-                        else Expire(_options.ExpireIn);
+                        if (_options.FollowJobRetentionPolicy)
+                        {
+                            FixExpiration();
+                        }
+                        else
+                        {
+                            Expire(_options.ExpireIn);
+                        }
                     }
                 }
                 finally

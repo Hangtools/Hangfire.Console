@@ -52,7 +52,11 @@ namespace Hangfire.Console.Server
                 }
                 catch
                 {
-                    if (ownsConnection) connection.Dispose();
+                    if (ownsConnection)
+                    {
+                        connection.Dispose();
+                    }
+
                     throw;
                 }
             }
