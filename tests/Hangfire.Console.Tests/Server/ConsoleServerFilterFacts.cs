@@ -247,6 +247,66 @@ namespace Hangfire.Console.Tests.Server
             _connection.Verify(x => x.Dispose(), Times.Never);
         }
 
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void OtherFilterAbort_DoesNotLeakConsoleConnection(bool cancel)
+        {
+            _connection.Setup(x => x.GetStateData("1"))
+                .Returns(CreateState(ProcessingState.StateName));
+            if (cancel)
+                _otherFilter.Setup(x => x.OnPerforming(It.IsAny<PerformingContext>()))
+                    .Callback<PerformingContext>(x => x.Canceled = true);
+            else
+                _otherFilter.Setup(x => x.OnPerforming(It.IsAny<PerformingContext>()))
+                    .Throws(new InvalidOperationException("Another filter failed"));
+            var performer = new BackgroundJobPerformer(CreateJobFilterProvider());
+            var context = CreatePerformContext();
+
+            if (cancel) performer.Perform(context);
+            else Assert.IsType<InvalidOperationException>(Assert.Throws<JobPerformanceException>(
+                () => performer.Perform(context)).InnerException);
+
+            Assert.DoesNotContain(context.Items.Values, item => item is ConsoleContext);
+            _consoleConnection.Verify(x => x.Dispose(), Times.Once);
+            _connection.Verify(x => x.Dispose(), Times.Never);
+        }
+
+        [Fact]
+        public void JobFailure_ClosesConsoleAndPreservesTheJobException()
+        {
+            _connection.Setup(x => x.GetStateData("1"))
+                .Returns(CreateState(ProcessingState.StateName));
+            var context = CreatePerformContext();
+            var failure = new InvalidOperationException("Job failed");
+            context.Items["failure"] = failure;
+
+            var exception = Assert.Throws<JobPerformanceException>(() =>
+                new BackgroundJobPerformer(CreateJobFilterProvider()).Perform(context));
+
+            Assert.Same(failure, exception.InnerException);
+            Assert.DoesNotContain(context.Items.Values, item => item is ConsoleContext);
+            _consoleConnection.Verify(x => x.Dispose(), Times.Once);
+            _connection.Verify(x => x.Dispose(), Times.Never);
+        }
+
+        [Fact]
+        public void RetentionFailure_ClosesConsoleAndRemovesItsContext()
+        {
+            _connection.Setup(x => x.GetStateData("1"))
+                .Returns(CreateState(ProcessingState.StateName));
+            _transaction.Setup(x => x.ExpireSet(It.IsAny<string>(), It.IsAny<TimeSpan>()))
+                .Throws(new InvalidOperationException("Expiration failed"));
+            var context = CreatePerformContext();
+
+            Assert.Throws<JobPerformanceException>(() =>
+                new BackgroundJobPerformer(CreateJobFilterProvider()).Perform(context));
+
+            Assert.DoesNotContain(context.Items.Values, item => item is ConsoleContext);
+            _consoleConnection.Verify(x => x.Dispose(), Times.Once);
+            _connection.Verify(x => x.Dispose(), Times.Never);
+        }
+
         [Fact]
         public void InitializationFailureDisposesConsoleConnection()
         {
@@ -281,6 +341,7 @@ namespace Hangfire.Console.Tests.Server
             // reset transaction method calls after OnPerforming is completed
             var @this = (ConsoleServerFilterFacts)context.Items["this"];
             @this._transaction.Invocations.Clear();
+            if (context.Items.TryGetValue("failure", out var failure)) throw (Exception)failure;
         }
 
         private IJobFilterProvider CreateJobFilterProvider(bool followJobRetention = false)

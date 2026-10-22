@@ -5,6 +5,8 @@ using Hangfire.States;
 using Hangfire.Storage;
 using Moq;
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Transactions;
 using Xunit;
 
@@ -84,6 +86,53 @@ namespace Hangfire.Console.Tests.Server
             context.Complete();
 
             _storage.Verify(x => x.Dispose(), Times.Once);
+        }
+
+        [Fact]
+        public async Task Complete_WaitsForAnInFlightWriteBeforeDisposingStorage()
+        {
+            using (var writeEntered = new ManualResetEventSlim())
+            using (var allowWrite = new ManualResetEventSlim())
+            using (var completionStarted = new ManualResetEventSlim())
+            {
+                var writeFinished = 0;
+                _storage.Setup(x => x.AddLine(It.IsAny<ConsoleId>(), It.IsAny<ConsoleLine>()))
+                    .Callback(() =>
+                    {
+                        writeEntered.Set();
+                        Assert.True(allowWrite.Wait(10_000));
+                        Volatile.Write(ref writeFinished, 1);
+                    });
+                _storage.Setup(x => x.Dispose())
+                    .Callback(() => Assert.Equal(1, Volatile.Read(ref writeFinished)));
+                var context = new ConsoleContext(new ConsoleId("1", DateTime.UtcNow), _storage.Object, _options);
+                var write = Task.Factory.StartNew(() => context.WriteLine("In flight", null),
+                    CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+                Task complete = null;
+
+                try
+                {
+                    Assert.True(writeEntered.Wait(10_000));
+                    complete = Task.Factory.StartNew(() =>
+                    {
+                        completionStarted.Set();
+                        context.Complete();
+                    }, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+                    Assert.True(completionStarted.Wait(10_000));
+                    Assert.NotSame(complete, await Task.WhenAny(complete, Task.Delay(100)));
+                    allowWrite.Set();
+                    await Task.WhenAll(write, complete);
+
+                    context.WriteLine("After completion", null);
+                    _storage.Verify(x => x.AddLine(It.IsAny<ConsoleId>(), It.IsAny<ConsoleLine>()), Times.Once);
+                    _storage.Verify(x => x.Dispose(), Times.Once);
+                }
+                finally
+                {
+                    allowWrite.Set();
+                    await Task.WhenAll(write, complete ?? Task.CompletedTask);
+                }
+            }
         }
 
         [Fact]
